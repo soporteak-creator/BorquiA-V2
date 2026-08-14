@@ -1,7 +1,7 @@
 
-  # Test this
+  # BorquIA-V2
 
-  This is a code bundle for Test this. The original project is available at https://www.figma.com/design/6kEyLG11ezXlQkvEcnNXg7/Test-this.
+  Esto ha sido creado por Rayendiss
 
   ## Running the code
 
