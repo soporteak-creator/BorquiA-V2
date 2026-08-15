@@ -12,12 +12,12 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import {
-  onAuthStateChanged, signOut,
+  onAuthStateChanged, signOut, deleteUser,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signInWithPopup, updateProfile, getAdditionalUserInfo, type User as FirebaseUser,
 } from "firebase/auth";
 import { auth, googleProvider } from "../lib/firebase";
-import { getUserProfile, saveUserProfile, EMPTY_PROFILE, type UserProfile } from "../lib/profile";
+import { getUserProfile, saveUserProfile, deleteUserProfile, EMPTY_PROFILE, type UserProfile } from "../lib/profile";
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -117,6 +117,37 @@ function ChartTooltip({ active, payload, label }: any) {
     <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-lg">
       <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
       <p className="text-sm font-semibold text-foreground">{payload[0].value}</p>
+    </div>
+  );
+}
+
+function ConfirmDialog({ title, description, confirmLabel, danger, loading, error, onConfirm, onCancel }: {
+  title: string; description: string; confirmLabel: string; danger?: boolean; loading?: boolean; error?: string;
+  onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+      <div className="fixed inset-0 bg-black/40" onClick={onCancel} />
+      <div className="relative z-10 bg-card rounded-3xl border border-border p-6 w-full max-w-sm shadow-xl">
+        <h3 className="font-semibold text-foreground mb-2">{title}</h3>
+        <p className="text-muted-foreground text-sm leading-relaxed mb-4">{description}</p>
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2 mb-4">
+            <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
+            <p className="text-red-600 text-xs leading-relaxed">{error}</p>
+          </div>
+        )}
+        <div className="flex gap-3">
+          <button onClick={onCancel} disabled={loading} className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-xl hover:bg-muted transition-colors text-sm disabled:opacity-60">
+            Cancelar
+          </button>
+          <button onClick={onConfirm} disabled={loading}
+            className={`flex-1 font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-opacity hover:opacity-90 ${danger ? "bg-red-600 text-white" : "bg-primary text-primary-foreground"}`}>
+            {loading && <Loader2 size={14} className="animate-spin" />}
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1325,8 +1356,16 @@ function HealthView({ profile, onProfileChange }: { profile: UserProfile; onProf
   );
 }
 
-function ProfileView({ profile, onLogout }: { profile: UserProfile; onLogout: () => void }) {
+function ProfileView({ profile, onProfileChange, onLogout }: { profile: UserProfile; onProfileChange: (p: UserProfile) => void; onLogout: () => void }) {
   const [notifications, setNotifications] = useState({ morning: profile.reminders.morning, water: profile.reminders.water, evening: profile.reminders.evening, weekly: false });
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(profile.name);
+  const [savingName, setSavingName] = useState(false);
+  const [busyAction, setBusyAction] = useState<"consent" | "download" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"deleteData" | "deleteAccount" | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirmError, setConfirmError] = useState("");
+
   const displayName = profile.name.trim() || "Sin nombre";
   const email = auth.currentUser?.email ?? "";
   const creationTime = auth.currentUser?.metadata.creationTime;
@@ -1334,21 +1373,124 @@ function ProfileView({ profile, onLogout }: { profile: UserProfile; onLogout: ()
     ? new Date(creationTime).toLocaleDateString("es-CL", { month: "long", year: "numeric" })
     : "";
 
+  const handleSaveName = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setSavingName(true);
+    const trimmed = nameInput.trim();
+    await saveUserProfile(uid, { name: trimmed });
+    if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: trimmed });
+    onProfileChange({ ...profile, name: trimmed });
+    setSavingName(false);
+    setEditingName(false);
+  };
+
+  const handleToggleAIConsent = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setBusyAction("consent");
+    const updated = { ...profile, aiConsentRevoked: !profile.aiConsentRevoked };
+    await saveUserProfile(uid, { aiConsentRevoked: updated.aiConsentRevoked });
+    onProfileChange(updated);
+    setBusyAction(null);
+  };
+
+  const handleDownloadData = () => {
+    setBusyAction("download");
+    const exportData = {
+      uid: auth.currentUser?.uid,
+      email,
+      memberSince: creationTime ?? null,
+      profile,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "borquia-mis-datos.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    setBusyAction(null);
+  };
+
+  const handleDeleteData = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setConfirmLoading(true);
+    setConfirmError("");
+    try {
+      await deleteUserProfile(uid);
+      onProfileChange(EMPTY_PROFILE);
+      setConfirmAction(null);
+    } catch {
+      setConfirmError("No se pudieron eliminar tus datos. Intenta nuevamente.");
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    setConfirmLoading(true);
+    setConfirmError("");
+    try {
+      await deleteUserProfile(user.uid);
+      await deleteUser(user);
+      // onAuthStateChanged picks up the deletion and returns to the landing page.
+    } catch (e: any) {
+      setConfirmError(
+        e?.code === "auth/requires-recent-login"
+          ? "Por seguridad, debes haber iniciado sesión recientemente para eliminar tu cuenta. Cierra sesión, vuelve a entrar y reinténtalo."
+          : "No se pudo eliminar tu cuenta. Intenta nuevamente."
+      );
+      setConfirmLoading(false);
+    }
+  };
+
+  const privacyItems = [
+    { key: "download", label: "Descargar mis datos", icon: Shield, onClick: handleDownloadData, loading: busyAction === "download" },
+    { key: "consent", label: profile.aiConsentRevoked ? "Reactivar consentimiento de IA" : "Revocar consentimiento de IA", icon: Info, onClick: handleToggleAIConsent, loading: busyAction === "consent" },
+    { key: "deleteData", label: "Eliminar datos personales", icon: AlertCircle, danger: true, onClick: () => { setConfirmError(""); setConfirmAction("deleteData"); } },
+    { key: "deleteAccount", label: "Eliminar mi cuenta", icon: X, danger: true, onClick: () => { setConfirmError(""); setConfirmAction("deleteAccount"); } },
+  ];
+
   return (
     <div className="space-y-5">
       <h1 className="font-display text-2xl text-foreground">Mi Perfil</h1>
 
       {/* User card */}
-      <div className="bg-card rounded-3xl border border-border p-6 flex items-center gap-5">
-        <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center text-2xl">
-          👤
+      <div className="bg-card rounded-3xl border border-border p-6">
+        <div className="flex items-center gap-5">
+          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center text-2xl shrink-0">
+            👤
+          </div>
+          <div className="flex-1 min-w-0">
+            {editingName ? (
+              <input value={nameInput} onChange={e => setNameInput(e.target.value)} autoFocus
+                onKeyDown={e => e.key === "Enter" && handleSaveName()}
+                className="w-full bg-input-background rounded-xl px-3 py-2 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+            ) : (
+              <h2 className="font-semibold text-foreground">{displayName}</h2>
+            )}
+            <p className="text-muted-foreground text-sm">{email}</p>
+            {memberSince && <p className="text-xs text-muted-foreground mt-0.5 capitalize">Miembro desde {memberSince}</p>}
+          </div>
+          {editingName ? (
+            <div className="flex gap-2 shrink-0">
+              <button onClick={() => { setEditingName(false); setNameInput(profile.name); }} disabled={savingName}
+                className="border border-border text-sm text-foreground px-3 py-2 rounded-xl hover:bg-muted transition-colors disabled:opacity-60">
+                Cancelar
+              </button>
+              <button onClick={handleSaveName} disabled={savingName}
+                className="bg-primary text-primary-foreground text-sm px-3 py-2 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center gap-1.5">
+                {savingName && <Loader2 size={14} className="animate-spin" />} Guardar
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setEditingName(true)} className="border border-border text-sm text-foreground px-4 py-2 rounded-xl hover:bg-muted transition-colors shrink-0">Editar</button>
+          )}
         </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-foreground">{displayName}</h2>
-          <p className="text-muted-foreground text-sm">{email}</p>
-          {memberSince && <p className="text-xs text-muted-foreground mt-0.5 capitalize">Miembro desde {memberSince}</p>}
-        </div>
-        <button className="border border-border text-sm text-foreground px-4 py-2 rounded-xl hover:bg-muted transition-colors">Editar</button>
       </div>
 
       {/* Notifications */}
@@ -1379,14 +1521,10 @@ function ProfileView({ profile, onLogout }: { profile: UserProfile; onLogout: ()
       <div className="bg-card rounded-3xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-4">Privacidad y datos</h3>
         <div className="space-y-2">
-          {[
-            { label: "Descargar mis datos", icon: Shield },
-            { label: "Revocar consentimiento de IA", icon: Info },
-            { label: "Eliminar datos personales", icon: AlertCircle, danger: true },
-            { label: "Eliminar mi cuenta", icon: X, danger: true },
-          ].map(({ label, icon: Icon, danger }) => (
-            <button key={label} className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors ${danger ? "hover:bg-red-50 text-red-600" : "hover:bg-muted text-foreground"}`}>
-              <Icon size={16} className={danger ? "text-red-500" : "text-muted-foreground"} />
+          {privacyItems.map(({ key, label, icon: Icon, danger, onClick, loading }) => (
+            <button key={key} onClick={onClick} disabled={loading}
+              className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors disabled:opacity-60 ${danger ? "hover:bg-red-50 text-red-600" : "hover:bg-muted text-foreground"}`}>
+              {loading ? <Loader2 size={16} className="animate-spin text-muted-foreground" /> : <Icon size={16} className={danger ? "text-red-500" : "text-muted-foreground"} />}
               <span className="text-sm">{label}</span>
               <ChevronRight size={14} className="ml-auto text-muted-foreground" />
             </button>
@@ -1399,6 +1537,31 @@ function ProfileView({ profile, onLogout }: { profile: UserProfile; onLogout: ()
           BorquIA · v1.0 · <span className="text-primary cursor-pointer hover:underline">Política de Privacidad</span> · <span className="text-primary cursor-pointer hover:underline">Términos</span>
         </p>
       </div>
+
+      {confirmAction === "deleteData" && (
+        <ConfirmDialog
+          title="Eliminar datos personales"
+          description="Se borrará tu perfil (nombre, edad, altura, peso, objetivos y datos de salud). Tu cuenta seguirá activa y podrás volver a completar tus datos cuando quieras."
+          confirmLabel="Eliminar datos"
+          danger
+          loading={confirmLoading}
+          error={confirmError}
+          onConfirm={handleDeleteData}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
+      {confirmAction === "deleteAccount" && (
+        <ConfirmDialog
+          title="Eliminar mi cuenta"
+          description="Esta acción es permanente: se borrará tu cuenta y todos tus datos de BorquIA. No podrás deshacerlo."
+          confirmLabel="Eliminar cuenta"
+          danger
+          loading={confirmLoading}
+          error={confirmError}
+          onConfirm={handleDeleteAccount}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
 
       <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 border border-border text-foreground py-3 rounded-2xl hover:bg-muted transition-colors text-sm font-medium">
         <LogOut size={15} /> Cerrar sesión
@@ -1501,7 +1664,7 @@ function AppShell({ view, profile, onProfileChange, onNavigate, onLogout }: { vi
           {view === "day" && <DayView />}
           {view === "stats" && <StatsView />}
           {view === "ai" && <AIView />}
-          {view === "profile" && <ProfileView profile={profile} onLogout={onLogout} />}
+          {view === "profile" && <ProfileView profile={profile} onProfileChange={onProfileChange} onLogout={onLogout} />}
         </main>
 
         {/* Mobile bottom nav */}
