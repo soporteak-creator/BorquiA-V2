@@ -22,6 +22,7 @@ import { getDailyLog, saveDailyLog, getRecentDailyLogs, todayKey, dateKeyOffset,
 import { getGoals, createGoal, updateGoalProgress, deleteGoal, type Goal } from "../lib/goals";
 import { askAssistant, type ChatTurn } from "../lib/ai";
 import { fetchAdminStats, fetchAdminUsers, type AdminStats, type AdminUser } from "../lib/admin";
+import { enablePushNotifications, sendTestNotification } from "../lib/notifications";
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -1660,6 +1661,47 @@ function ProfileView({ profile, onProfileChange, onLogout }: { profile: UserProf
   const [confirmAction, setConfirmAction] = useState<"deleteData" | "deleteAccount" | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmError, setConfirmError] = useState("");
+  const [pushState, setPushState] = useState<"idle" | "loading" | "granted" | "denied" | "unsupported">(
+    typeof Notification !== "undefined" && Notification.permission === "granted" ? "granted" : "idle"
+  );
+  const [testState, setTestState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [testError, setTestError] = useState("");
+
+  const handleToggleReminder = (key: "morning" | "water" | "evening" | "weekly") => {
+    const next = !(notifications as any)[key];
+    setNotifications(n => ({ ...n, [key]: next }));
+    if (key === "weekly") return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const reminders = { ...profile.reminders, [key]: next };
+    saveUserProfile(uid, { reminders });
+    onProfileChange({ ...profile, reminders });
+  };
+
+  const handleEnablePush = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setPushState("loading");
+    try {
+      const result = await enablePushNotifications(uid);
+      setPushState(result);
+    } catch {
+      setPushState("denied");
+    }
+  };
+
+  const handleSendTest = async () => {
+    setTestState("sending");
+    setTestError("");
+    try {
+      await sendTestNotification();
+      setTestState("sent");
+      setTimeout(() => setTestState("idle"), 3000);
+    } catch (e: any) {
+      setTestError(e?.message ?? "No se pudo enviar la notificación de prueba.");
+      setTestState("error");
+    }
+  };
 
   const displayName = profile.name.trim() || "Sin nombre";
   const email = auth.currentUser?.email ?? "";
@@ -1803,13 +1845,48 @@ function ProfileView({ profile, onProfileChange, onLogout }: { profile: UserProf
                 <p className="text-sm font-medium text-foreground">{label}</p>
                 <p className="text-xs text-muted-foreground">{sub}</p>
               </div>
-              <button onClick={() => setNotifications(n => ({ ...n, [key]: !(n as any)[key] }))}
+              <button onClick={() => handleToggleReminder(key as "morning" | "water" | "evening" | "weekly")}
                 className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${(notifications as any)[key] ? "bg-primary" : "bg-switch-background"}`}>
                 <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all" style={{ left: (notifications as any)[key] ? "22px" : "2px" }} />
               </button>
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Push notifications */}
+      <div className="bg-card rounded-3xl border border-border p-6">
+        <h3 className="font-semibold text-foreground mb-1">Notificaciones push</h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          {pushState === "granted" ? "Activadas en este dispositivo. Recibirás tus recordatorios como notificaciones push." : "Actívalas para recibir tus recordatorios como notificaciones del navegador."}
+        </p>
+        {pushState === "unsupported" && (
+          <p className="text-xs text-amber-600 mb-3">Tu navegador no soporta notificaciones push.</p>
+        )}
+        {pushState === "denied" && (
+          <p className="text-xs text-red-600 mb-3">Permiso denegado. Habilítalo desde la configuración del navegador para este sitio.</p>
+        )}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {pushState !== "granted" && (
+            <button onClick={handleEnablePush} disabled={pushState === "loading"}
+              className="flex-1 bg-primary text-primary-foreground font-semibold py-2.5 rounded-xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+              {pushState === "loading" && <Loader2 size={14} className="animate-spin" />} Activar notificaciones
+            </button>
+          )}
+          {pushState === "granted" && (
+            <button onClick={handleSendTest} disabled={testState === "sending"}
+              className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-xl hover:bg-muted transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+              {testState === "sending" && <Loader2 size={14} className="animate-spin" />}
+              {testState === "sent" ? <><CheckCircle size={14} className="text-emerald-500" /> Enviada</> : "Enviar notificación de prueba"}
+            </button>
+          )}
+        </div>
+        {testState === "error" && (
+          <div className="mt-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2">
+            <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
+            <p className="text-red-600 text-xs leading-relaxed">{testError}</p>
+          </div>
+        )}
       </div>
 
       {/* Privacy */}

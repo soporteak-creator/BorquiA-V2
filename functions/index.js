@@ -1,10 +1,35 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
 
 initializeApp();
+
+function chileDateKey(d = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
+
+async function sendToUser(uid, notification) {
+  const db = getFirestore();
+  const tokensSnap = await db.collection("users").doc(uid).collection("fcmTokens").get();
+  if (tokensSnap.empty) return { sent: 0 };
+
+  const tokens = tokensSnap.docs.map(d => d.id);
+  const response = await getMessaging().sendEachForMulticast({ tokens, notification });
+
+  const invalid = [];
+  response.responses.forEach((r, i) => {
+    if (!r.success && ["messaging/registration-token-not-registered", "messaging/invalid-registration-token"].includes(r.error?.code)) {
+      invalid.push(tokens[i]);
+    }
+  });
+  await Promise.all(invalid.map(t => db.collection("users").doc(uid).collection("fcmTokens").doc(t).delete()));
+
+  return { sent: response.successCount };
+}
 
 const MODEL = "gemini-flash-latest";
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
@@ -124,4 +149,48 @@ export const askCoach = onCall({ secrets: [geminiApiKey], region: "southamerica-
     throw new HttpsError("internal", "El asistente no entregó una respuesta.");
   }
   return { reply };
+});
+
+export const sendTestNotification = onCall({ region: "southamerica-west1" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  }
+  const result = await sendToUser(request.auth.uid, {
+    title: "BorquIA",
+    body: "¡Notificaciones activadas! Así se verán tus recordatorios.",
+  });
+  if (result.sent === 0) {
+    throw new HttpsError("failed-precondition", "No se encontró ningún dispositivo con notificaciones activadas.");
+  }
+  return result;
+});
+
+const REMINDER_BY_HOUR = {
+  8: { field: "morning", title: "Buenos días 👋", body: "Registra tu día en BorquIA para empezar con intención." },
+  14: { field: "water", title: "Hora de hidratarte 💧", body: "¿Ya bebiste suficiente agua hoy? Registra tu avance en BorquIA." },
+  20: { field: "evening", title: "Cierra tu día 🌙", body: "No olvides completar tu registro diario en BorquIA." },
+};
+
+export const sendReminders = onSchedule({ schedule: "0 * * * *", timeZone: "America/Santiago", region: "southamerica-east1" }, async () => {
+  const hour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Santiago", hour: "numeric", hour12: false }).format(new Date()));
+  const reminder = REMINDER_BY_HOUR[hour];
+  if (!reminder) return;
+
+  const db = getFirestore();
+  const today = chileDateKey();
+  const usersSnap = await db.collection("users").where(`reminders.${reminder.field}`, "==", true).get();
+
+  await Promise.all(usersSnap.docs.map(async (userDoc) => {
+    const uid = userDoc.id;
+    const logSnap = await db.collection("users").doc(uid).collection("dailyLogs").doc(today).get();
+    const log = logSnap.exists ? logSnap.data() : null;
+
+    if (reminder.field === "water") {
+      if (log && log.water >= 8) return; // already met today's goal
+    } else if (log) {
+      return; // already logged today, skip morning/evening nudge
+    }
+
+    await sendToUser(uid, { title: reminder.title, body: reminder.body }).catch(err => console.error("sendReminders failed for", uid, err));
+  }));
 });
