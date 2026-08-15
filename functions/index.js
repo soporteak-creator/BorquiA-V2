@@ -1,8 +1,63 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
+import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
+
+initializeApp();
 
 const MODEL = "gemini-flash-latest";
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+
+function requireAdmin(request) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  }
+  if (request.auth.token.admin !== true) {
+    throw new HttpsError("permission-denied", "No tienes permisos de administrador.");
+  }
+}
+
+export const adminGetUsers = onCall({ region: "southamerica-west1" }, async (request) => {
+  requireAdmin(request);
+
+  const auth = getAuth();
+  const users = [];
+  let pageToken;
+  do {
+    const result = await auth.listUsers(1000, pageToken);
+    for (const u of result.users) {
+      users.push({
+        uid: u.uid,
+        email: u.email ?? null,
+        displayName: u.displayName ?? null,
+        createdAt: u.metadata.creationTime,
+        lastSignIn: u.metadata.lastSignInTime,
+        disabled: u.disabled,
+      });
+    }
+    pageToken = result.pageToken;
+  } while (pageToken);
+
+  return { users };
+});
+
+export const adminGetStats = onCall({ region: "southamerica-west1" }, async (request) => {
+  requireAdmin(request);
+
+  const db = getFirestore();
+  const [profilesCount, logsCount, goalsCount] = await Promise.all([
+    db.collection("users").count().get(),
+    db.collectionGroup("dailyLogs").count().get(),
+    db.collectionGroup("goals").count().get(),
+  ]);
+
+  return {
+    totalProfiles: profilesCount.data().count,
+    totalDailyLogs: logsCount.data().count,
+    totalGoals: goalsCount.data().count,
+  };
+});
 
 const SYSTEM_INSTRUCTION = `Eres el asistente de bienestar de BorquIA, una plataforma de salud y bienestar personal.
 

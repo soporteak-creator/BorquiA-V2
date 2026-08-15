@@ -21,6 +21,7 @@ import { getUserProfile, saveUserProfile, deleteUserProfile, EMPTY_PROFILE, type
 import { getDailyLog, saveDailyLog, getRecentDailyLogs, todayKey, dateKeyOffset, wellnessScore, EMPTY_DAILY_LOG, type DailyLog, type DailyLogEntry } from "../lib/dailyLog";
 import { getGoals, createGoal, updateGoalProgress, deleteGoal, type Goal } from "../lib/goals";
 import { askAssistant, type ChatTurn } from "../lib/ai";
+import { fetchAdminStats, fetchAdminUsers, type AdminStats, type AdminUser } from "../lib/admin";
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -1978,9 +1979,198 @@ function AppShell({ view, profile, onProfileChange, onNavigate, onLogout }: { vi
   );
 }
 
+// ── Admin Panel ────────────────────────────────────────────────
+// Independent panel, separate from the regular user nav. Reached via /admin.
+// Never reads individual users' health/goals/daily-log content — only
+// aggregate counts and account metadata, enforced server-side in Cloud Functions.
+
+function AdminApp() {
+  const [user, setUser] = useState<FirebaseUser | null | undefined>(undefined);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+  const [dataError, setDataError] = useState("");
+
+  const [authForm, setAuthForm] = useState({ email: "", password: "" });
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (u) {
+        const token = await u.getIdTokenResult(true);
+        setIsAdmin(token.claims.admin === true);
+      } else {
+        setIsAdmin(false);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    setLoadingData(true);
+    setDataError("");
+    Promise.all([fetchAdminStats(), fetchAdminUsers()])
+      .then(([s, u]) => { setStats(s); setUsers(u); })
+      .catch(() => setDataError("No se pudo cargar la información administrativa."))
+      .finally(() => setLoadingData(false));
+  }, [isAdmin]);
+
+  const handleLogin = async () => {
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
+    } catch (e: any) {
+      setAuthError(authErrorMessage(e?.code ?? ""));
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  if (user === undefined || isAdmin === null) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 size={28} className="text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="w-full max-w-sm bg-card rounded-3xl border border-border p-8">
+          <h1 className="font-display text-2xl text-foreground mb-1">Panel Administrativo</h1>
+          <p className="text-muted-foreground text-sm mb-6">Inicia sesión con tu cuenta de administrador.</p>
+          <div className="space-y-3">
+            <input type="email" value={authForm.email} onChange={e => setAuthForm(f => ({ ...f, email: e.target.value }))}
+              placeholder="tu@correo.com" className="w-full bg-input-background rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+            <input type="password" value={authForm.password} onChange={e => setAuthForm(f => ({ ...f, password: e.target.value }))}
+              onKeyDown={e => e.key === "Enter" && handleLogin()}
+              placeholder="••••••••" className="w-full bg-input-background rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+          </div>
+          {authError && (
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2">
+              <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
+              <p className="text-red-600 text-xs leading-relaxed">{authError}</p>
+            </div>
+          )}
+          <button onClick={handleLogin} disabled={authLoading}
+            className="w-full mt-6 bg-primary text-primary-foreground font-semibold py-3.5 rounded-2xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+            {authLoading && <Loader2 size={16} className="animate-spin" />} Iniciar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="w-full max-w-sm bg-card rounded-3xl border border-border p-8 text-center">
+          <AlertCircle size={24} className="text-red-500 mx-auto mb-3" />
+          <p className="text-foreground font-medium text-sm mb-1">Sin acceso</p>
+          <p className="text-muted-foreground text-sm mb-6">Tu cuenta no tiene permisos de administrador.</p>
+          <button onClick={() => signOut(auth)} className="w-full border border-border text-foreground font-medium py-3 rounded-2xl hover:bg-muted transition-colors text-sm">
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="bg-card border-b border-border px-6 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
+            <Shield size={15} className="text-primary-foreground" />
+          </div>
+          <span className="font-semibold text-foreground tracking-tight">BorquIA · Panel Administrativo</span>
+        </div>
+        <button onClick={() => signOut(auth)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <LogOut size={15} /> Cerrar sesión
+        </button>
+      </header>
+
+      <main className="max-w-5xl mx-auto p-6 space-y-6">
+        {loadingData ? (
+          <div className="flex items-center justify-center py-24">
+            <Loader2 size={24} className="text-primary animate-spin" />
+          </div>
+        ) : dataError ? (
+          <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm">{dataError}</div>
+        ) : (
+          <>
+            <div className="grid sm:grid-cols-3 gap-4">
+              {[
+                { label: "Usuarios registrados", value: stats?.totalProfiles ?? 0, icon: User, color: "#6366f1" },
+                { label: "Registros diarios totales", value: stats?.totalDailyLogs ?? 0, icon: Sun, color: "#147A60" },
+                { label: "Objetivos creados", value: stats?.totalGoals ?? 0, icon: Target, color: "#0ea5e9" },
+              ].map(({ label, value, icon: Icon, color }) => (
+                <div key={label} className="bg-card rounded-3xl border border-border p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${color}18` }}>
+                      <Icon size={15} style={{ color }} />
+                    </div>
+                  </div>
+                  <span className="text-3xl font-bold text-foreground">{value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-card rounded-3xl border border-border overflow-hidden">
+              <div className="p-6 pb-4">
+                <h2 className="font-semibold text-foreground">Usuarios ({users.length})</h2>
+                <p className="text-xs text-muted-foreground mt-1">Solo datos de cuenta. No se muestra información de salud ni hábitos personales.</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-t border-border text-left text-xs text-muted-foreground uppercase tracking-wider">
+                      <th className="px-6 py-3 font-medium">Nombre</th>
+                      <th className="px-6 py-3 font-medium">Correo</th>
+                      <th className="px-6 py-3 font-medium">Registrado</th>
+                      <th className="px-6 py-3 font-medium">Último acceso</th>
+                      <th className="px-6 py-3 font-medium">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map(u => (
+                      <tr key={u.uid} className="border-t border-border">
+                        <td className="px-6 py-3 text-foreground">{u.displayName || "—"}</td>
+                        <td className="px-6 py-3 text-muted-foreground">{u.email || "—"}</td>
+                        <td className="px-6 py-3 text-muted-foreground">{new Date(u.createdAt).toLocaleDateString("es-CL")}</td>
+                        <td className="px-6 py-3 text-muted-foreground">{new Date(u.lastSignIn).toLocaleDateString("es-CL")}</td>
+                        <td className="px-6 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${u.disabled ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
+                            {u.disabled ? "Deshabilitado" : "Activo"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
 // ── App ────────────────────────────────────────────────────────
 
 export default function App() {
+  if (typeof window !== "undefined" && window.location.pathname === "/admin") {
+    return <AdminApp />;
+  }
+
   const [view, setView] = useState<View>("landing");
   const [appView, setAppView] = useState<View>("dashboard");
   const [inApp, setInApp] = useState(false);
