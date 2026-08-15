@@ -205,7 +205,7 @@ function LandingPage({ onStart }: { onStart: () => void }) {
             <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
               <Heart size={16} className="text-primary-foreground" />
             </div>
-            <span className="font-semibold text-foreground tracking-tight">Vitalia</span>
+            <span className="font-semibold text-foreground tracking-tight">BorquIA</span>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={onStart} className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block">Iniciar sesión</button>
@@ -330,7 +330,7 @@ function LandingPage({ onStart }: { onStart: () => void }) {
                   <MessageSquare size={16} className="text-emerald-300" />
                 </div>
                 <div>
-                  <p className="text-white font-semibold text-sm">Asistente Vitalia</p>
+                  <p className="text-white font-semibold text-sm">Asistente BorquIA</p>
                   <p className="text-white/40 text-xs">Siempre disponible</p>
                 </div>
               </div>
@@ -414,9 +414,9 @@ function LandingPage({ onStart }: { onStart: () => void }) {
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
               <Heart size={13} className="text-primary-foreground" />
             </div>
-            <span className="font-semibold text-foreground text-sm">Vitalia</span>
+            <span className="font-semibold text-foreground text-sm">BorquIA</span>
           </div>
-          <p className="text-muted-foreground text-xs">© 2026 Vitalia · Información general de bienestar · No es un servicio médico</p>
+          <p className="text-muted-foreground text-xs">© 2026 BorquIA · Información general de bienestar · No es un servicio médico</p>
           <div className="flex gap-5">
             {["Privacidad", "Términos", "Contacto"].map(l => (
               <button key={l} className="text-xs text-muted-foreground hover:text-foreground transition-colors">{l}</button>
@@ -480,7 +480,7 @@ function AuthPage({ onSuccess, onBack }: { onSuccess: (isNewUser: boolean) => vo
             <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
               <Heart size={16} className="text-primary-foreground" />
             </div>
-            <span className="font-semibold text-foreground">Vitalia</span>
+            <span className="font-semibold text-foreground">BorquIA</span>
           </div>
           <h2 className="font-display text-2xl text-foreground mb-1">
             {mode === "register" ? "Crea tu cuenta" : "Bienvenido de vuelta"}
@@ -594,7 +594,7 @@ function OnboardingPage({ onFinish }: { onFinish: () => void }) {
               <div className="w-16 h-16 rounded-3xl bg-secondary flex items-center justify-center mx-auto mb-6">
                 <Heart size={28} className="text-primary" />
               </div>
-              <h2 className="font-display text-3xl text-foreground mb-3">Bienvenido a Vitalia</h2>
+              <h2 className="font-display text-3xl text-foreground mb-3">Bienvenido a BorquIA</h2>
               <p className="text-muted-foreground text-sm leading-relaxed mb-6 max-w-sm mx-auto">
                 En los próximos pasos configuraremos tu experiencia. Solo comparte lo que te resulte cómodo. Sin datos obligatorios.
               </p>
@@ -1341,7 +1341,7 @@ function ProfileView({ onLogout }: { onLogout: () => void }) {
 
       <div className="bg-card rounded-3xl border border-border p-4">
         <p className="text-xs text-muted-foreground text-center leading-relaxed">
-          Vitalia · v1.0 · <span className="text-primary cursor-pointer hover:underline">Política de Privacidad</span> · <span className="text-primary cursor-pointer hover:underline">Términos</span>
+          BorquIA · v1.0 · <span className="text-primary cursor-pointer hover:underline">Política de Privacidad</span> · <span className="text-primary cursor-pointer hover:underline">Términos</span>
         </p>
       </div>
 
@@ -1375,7 +1375,7 @@ function AppShell({ view, onNavigate, onLogout }: { view: View; onNavigate: (v: 
           <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
             <Heart size={15} className="text-primary-foreground" />
           </div>
-          <span className="font-semibold text-foreground tracking-tight">Vitalia</span>
+          <span className="font-semibold text-foreground tracking-tight">BorquIA</span>
         </div>
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map(({ view: v, label, Icon }) => (
@@ -1403,7 +1403,7 @@ function AppShell({ view, onNavigate, onLogout }: { view: View; onNavigate: (v: 
                 <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
                   <Heart size={15} className="text-primary-foreground" />
                 </div>
-                <span className="font-semibold text-foreground">Vitalia</span>
+                <span className="font-semibold text-foreground">BorquIA</span>
               </div>
               <button onClick={() => setSidebarOpen(false)} className="text-muted-foreground hover:text-foreground">
                 <X size={20} />
@@ -1432,7 +1432,7 @@ function AppShell({ view, onNavigate, onLogout }: { view: View; onNavigate: (v: 
             <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
               <Heart size={11} className="text-primary-foreground" />
             </div>
-            <span className="font-semibold text-foreground text-sm">Vitalia</span>
+            <span className="font-semibold text-foreground text-sm">BorquIA</span>
           </div>
           <button onClick={() => onNavigate("profile")} className="text-muted-foreground hover:text-foreground">
             <User size={20} />
