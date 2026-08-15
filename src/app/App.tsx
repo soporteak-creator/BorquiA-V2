@@ -17,6 +17,7 @@ import {
   signInWithPopup, updateProfile, getAdditionalUserInfo, type User as FirebaseUser,
 } from "firebase/auth";
 import { auth, googleProvider } from "../lib/firebase";
+import { getUserProfile, saveUserProfile, EMPTY_PROFILE, type UserProfile } from "../lib/profile";
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -56,12 +57,15 @@ const MONTHLY_DATA = [
   { week: "Sem 1", sueño: 7.1, actividad: 28 }, { week: "Sem 2", sueño: 7.4, actividad: 35 },
   { week: "Sem 3", sueño: 6.9, actividad: 42 }, { week: "Sem 4", sueño: 7.8, actividad: 50 },
 ];
-const GOALS_DATA = [
-  { id: 1, title: "Mejorar hábitos de sueño", Icon: Moon, progress: 72, target: "8h de sueño diario", color: "#6366f1", started: "1 jun 2026", due: "31 ago 2026", status: "En progreso" },
-  { id: 2, title: "Aumentar actividad física", Icon: Activity, progress: 55, target: "30 min/día de ejercicio", color: "#147A60", started: "15 jun 2026", due: "15 sep 2026", status: "En progreso" },
-  { id: 3, title: "Mejorar hidratación", Icon: Droplets, progress: 88, target: "8 vasos de agua al día", color: "#0ea5e9", started: "1 jul 2026", due: "31 ago 2026", status: "Casi logrado" },
-  { id: 4, title: "Bienestar general", Icon: Heart, progress: 40, target: "Registro diario completo", color: "#ec4899", started: "1 ago 2026", due: "31 oct 2026", status: "Iniciando" },
-];
+const GOAL_META: Record<string, { Icon: typeof Moon; color: string; target: string }> = {
+  "Mejorar mi sueño": { Icon: Moon, color: "#6366f1", target: "8h de sueño diario" },
+  "Aumentar actividad física": { Icon: Activity, color: "#147A60", target: "30 min/día de ejercicio" },
+  "Beber más agua": { Icon: Droplets, color: "#0ea5e9", target: "8 vasos de agua al día" },
+  "Mejorar alimentación": { Icon: Utensils, color: "#F59E0B", target: "Comidas balanceadas cada día" },
+  "Reducir estrés": { Icon: Smile, color: "#ec4899", target: "Momentos de calma diarios" },
+  "Controlar mi peso": { Icon: Scale, color: "#8b5cf6", target: "Seguimiento de peso semanal" },
+};
+const DEFAULT_GOAL_META = { Icon: Target, color: "#6366f1", target: "Objetivo personal" };
 
 const SUGGESTED_QUESTIONS = [
   "¿Cómo puedo mejorar mi sueño?",
@@ -563,15 +567,31 @@ function AuthPage({ onSuccess, onBack }: { onSuccess: (isNewUser: boolean) => vo
 const STEP_GOALS = ["Mejorar mi sueño", "Aumentar actividad física", "Beber más agua", "Mejorar alimentación", "Reducir estrés", "Controlar mi peso"];
 const STEP_HABITS = ["Sueño", "Agua", "Actividad física", "Estado de ánimo", "Alimentación", "Peso"];
 
-function OnboardingPage({ onFinish }: { onFinish: () => void }) {
+function OnboardingPage({ onFinish }: { onFinish: (profile: UserProfile) => void }) {
   const [step, setStep] = useState(1);
-  const [data, setData] = useState({ name: "María", age: "34", height: "165", weight: "68", goals: ["Mejorar mi sueño", "Beber más agua"], habits: ["Sueño", "Agua", "Actividad física"], reminders: { morning: true, evening: true, water: true } });
+  const [data, setData] = useState({
+    name: auth.currentUser?.displayName ?? "",
+    age: "", height: "", weight: "",
+    goals: [] as string[], habits: [] as string[],
+    reminders: { morning: true, evening: true, water: true },
+  });
+  const [saving, setSaving] = useState(false);
 
   const toggleArr = (key: "goals" | "habits", val: string) => {
     setData(d => ({ ...d, [key]: d[key].includes(val) ? d[key].filter(x => x !== val) : [...d[key], val] }));
   };
 
   const steps = ["Bienvenida", "Información básica", "Tus objetivos", "Hábitos a seguir", "Recordatorios"];
+
+  const handleFinish = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setSaving(true);
+    const profile: UserProfile = { ...data, health: EMPTY_PROFILE.health };
+    await saveUserProfile(uid, profile);
+    setSaving(false);
+    onFinish(profile);
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -695,9 +715,10 @@ function OnboardingPage({ onFinish }: { onFinish: () => void }) {
                 Atrás
               </button>
             )}
-            <button onClick={() => step < 5 ? setStep(s => s + 1) : onFinish()}
-              className="flex-1 bg-primary text-primary-foreground font-semibold py-3 rounded-2xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2">
-              {step === 5 ? "Ver mi dashboard" : "Continuar"} <ChevronRight size={15} />
+            <button onClick={() => step < 5 ? setStep(s => s + 1) : handleFinish()} disabled={saving}
+              className="flex-1 bg-primary text-primary-foreground font-semibold py-3 rounded-2xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+              {saving && <Loader2 size={15} className="animate-spin" />}
+              {step === 5 ? "Ver mi dashboard" : "Continuar"} {!saving && <ChevronRight size={15} />}
             </button>
           </div>
         </div>
@@ -708,15 +729,16 @@ function OnboardingPage({ onFinish }: { onFinish: () => void }) {
 
 // ── App Views ──────────────────────────────────────────────────
 
-function DashboardView({ onNavigate }: { onNavigate: (v: View) => void }) {
+function DashboardView({ profile, onNavigate }: { profile: UserProfile; onNavigate: (v: View) => void }) {
   const today = new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" });
+  const name = profile.name.trim();
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <p className="text-muted-foreground text-sm capitalize">{today}</p>
-          <h1 className="font-display text-2xl text-foreground">Buenos días, María 👋</h1>
+          <h1 className="font-display text-2xl text-foreground">Buenos días{name ? `, ${name}` : ""} 👋</h1>
         </div>
         <button onClick={() => onNavigate("day")} className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-opacity shrink-0 self-start">
           <Plus size={15} /> Registrar hoy
@@ -969,50 +991,56 @@ function DayView() {
   );
 }
 
-function GoalsView() {
+function GoalsView({ profile }: { profile: UserProfile }) {
+  const today = new Date().toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" });
+  const goals = profile.goals.map(title => ({ title, ...(GOAL_META[title] ?? DEFAULT_GOAL_META) }));
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl text-foreground">Mis Objetivos</h1>
-          <p className="text-muted-foreground text-sm">4 objetivos activos · agosto 2026</p>
+          <p className="text-muted-foreground text-sm">{goals.length} objetivo{goals.length === 1 ? "" : "s"} activo{goals.length === 1 ? "" : "s"}</p>
         </div>
         <button className="flex items-center gap-2 border border-border text-foreground px-4 py-2 rounded-xl text-sm font-medium hover:bg-muted transition-colors">
           <Plus size={15} /> Nuevo objetivo
         </button>
       </div>
-      <div className="grid md:grid-cols-2 gap-4">
-        {GOALS_DATA.map(({ id, title, Icon, progress, target, color, started, due, status }) => (
-          <div key={id} className="bg-card rounded-3xl border border-border p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: `${color}18` }}>
-                  <Icon size={20} style={{ color }} />
+      {goals.length === 0 ? (
+        <div className="bg-card rounded-3xl border border-border p-8 text-center">
+          <Target size={24} className="text-muted-foreground mx-auto mb-3" />
+          <p className="text-foreground font-medium text-sm mb-1">Aún no tienes objetivos</p>
+          <p className="text-muted-foreground text-sm">Los objetivos que elegiste al crear tu cuenta aparecerán aquí.</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-4">
+          {goals.map(({ title, Icon, color, target }) => (
+            <div key={title} className="bg-card rounded-3xl border border-border p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: `${color}18` }}>
+                    <Icon size={20} style={{ color }} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground text-sm">{title}</h3>
+                    <p className="text-xs text-muted-foreground">{target}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-foreground text-sm">{title}</h3>
-                  <p className="text-xs text-muted-foreground">{target}</p>
+                <span className="text-xs font-semibold" style={{ color }}>0%</span>
+              </div>
+              <ProgressBar value={0} color={color} />
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Calendar size={11} /> Inicio: {today}
                 </div>
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">
+                  Iniciando
+                </span>
               </div>
-              <span className="text-xs font-semibold" style={{ color }}>{progress}%</span>
             </div>
-            <ProgressBar value={progress} color={color} />
-            <div className="flex items-center justify-between mt-3">
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Calendar size={11} /> Inicio: {started}
-              </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${progress >= 80 ? "bg-emerald-100 text-emerald-700" : progress >= 50 ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"}`}>
-                {status}
-              </span>
-            </div>
-            {due && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                <Clock size={11} /> Meta: {due}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1197,10 +1225,31 @@ function AIView() {
   );
 }
 
-function HealthView() {
-  const [form, setForm] = useState({ age: "34", height: "165", weight: "68.2", bloodPressure: "", glucose: "", medications: "", notes: "" });
+function HealthView({ profile, onProfileChange }: { profile: UserProfile; onProfileChange: (p: UserProfile) => void }) {
+  const [form, setForm] = useState({
+    age: profile.age, height: profile.height, weight: profile.weight,
+    bloodPressure: profile.health.bloodPressure, glucose: profile.health.glucose,
+    medications: profile.health.medications, notes: profile.health.notes,
+  });
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const update = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSave = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setSaving(true);
+    const updated: UserProfile = {
+      ...profile,
+      age: form.age, height: form.height, weight: form.weight,
+      health: { bloodPressure: form.bloodPressure, glucose: form.glucose, medications: form.medications, notes: form.notes },
+    };
+    await saveUserProfile(uid, updated);
+    onProfileChange(updated);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
 
   return (
     <div className="space-y-5">
@@ -1268,16 +1317,22 @@ function HealthView() {
           className="w-full bg-input-background rounded-2xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
       </div>
 
-      <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }}
-        className={`w-full py-3.5 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"}`}>
-        {saved ? <><CheckCircle size={16} /> Perfil guardado</> : "Guardar perfil de salud"}
+      <button onClick={handleSave} disabled={saving}
+        className={`w-full py-3.5 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"}`}>
+        {saving ? <><Loader2 size={16} className="animate-spin" /> Guardando...</> : saved ? <><CheckCircle size={16} /> Perfil guardado</> : "Guardar perfil de salud"}
       </button>
     </div>
   );
 }
 
-function ProfileView({ onLogout }: { onLogout: () => void }) {
-  const [notifications, setNotifications] = useState({ morning: true, water: true, evening: true, weekly: false });
+function ProfileView({ profile, onLogout }: { profile: UserProfile; onLogout: () => void }) {
+  const [notifications, setNotifications] = useState({ morning: profile.reminders.morning, water: profile.reminders.water, evening: profile.reminders.evening, weekly: false });
+  const displayName = profile.name.trim() || "Sin nombre";
+  const email = auth.currentUser?.email ?? "";
+  const creationTime = auth.currentUser?.metadata.creationTime;
+  const memberSince = creationTime
+    ? new Date(creationTime).toLocaleDateString("es-CL", { month: "long", year: "numeric" })
+    : "";
 
   return (
     <div className="space-y-5">
@@ -1286,12 +1341,12 @@ function ProfileView({ onLogout }: { onLogout: () => void }) {
       {/* User card */}
       <div className="bg-card rounded-3xl border border-border p-6 flex items-center gap-5">
         <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center text-2xl">
-          👩‍💼
+          👤
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-foreground">María García</h2>
-          <p className="text-muted-foreground text-sm">maria@example.com</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Miembro desde agosto 2026</p>
+          <h2 className="font-semibold text-foreground">{displayName}</h2>
+          <p className="text-muted-foreground text-sm">{email}</p>
+          {memberSince && <p className="text-xs text-muted-foreground mt-0.5 capitalize">Miembro desde {memberSince}</p>}
         </div>
         <button className="border border-border text-sm text-foreground px-4 py-2 rounded-xl hover:bg-muted transition-colors">Editar</button>
       </div>
@@ -1364,7 +1419,7 @@ const NAV_ITEMS = [
   { view: "profile" as View, label: "Perfil", Icon: User },
 ];
 
-function AppShell({ view, onNavigate, onLogout }: { view: View; onNavigate: (v: View) => void; onLogout: () => void }) {
+function AppShell({ view, profile, onProfileChange, onNavigate, onLogout }: { view: View; profile: UserProfile; onProfileChange: (p: UserProfile) => void; onNavigate: (v: View) => void; onLogout: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -1440,13 +1495,13 @@ function AppShell({ view, onNavigate, onLogout }: { view: View; onNavigate: (v: 
         </header>
 
         <main className="flex-1 p-5 md:p-8 overflow-y-auto">
-          {view === "dashboard" && <DashboardView onNavigate={onNavigate} />}
-          {view === "health" && <HealthView />}
-          {view === "goals" && <GoalsView />}
+          {view === "dashboard" && <DashboardView profile={profile} onNavigate={onNavigate} />}
+          {view === "health" && <HealthView profile={profile} onProfileChange={onProfileChange} />}
+          {view === "goals" && <GoalsView profile={profile} />}
           {view === "day" && <DayView />}
           {view === "stats" && <StatsView />}
           {view === "ai" && <AIView />}
-          {view === "profile" && <ProfileView onLogout={onLogout} />}
+          {view === "profile" && <ProfileView profile={profile} onLogout={onLogout} />}
         </main>
 
         {/* Mobile bottom nav */}
@@ -1473,20 +1528,28 @@ export default function App() {
   const [appView, setAppView] = useState<View>("dashboard");
   const [inApp, setInApp] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE);
 
   useEffect(() => {
     let initialCheck = true;
     const unsubscribe = onAuthStateChanged(auth, (user: FirebaseUser | null) => {
       if (initialCheck) {
         // Page load: an existing session means a returning, already-onboarded user.
-        if (user) { setInApp(true); setAppView("dashboard"); }
-        else { setInApp(false); setView("landing"); }
+        if (user) {
+          getUserProfile(user.uid).then(p => setProfile(p ?? EMPTY_PROFILE));
+          setInApp(true);
+          setAppView("dashboard");
+        } else {
+          setInApp(false);
+          setView("landing");
+        }
         setCheckingSession(false);
         initialCheck = false;
       } else if (!user) {
         // Explicit sign-out during the session.
         setInApp(false);
         setView("landing");
+        setProfile(EMPTY_PROFILE);
       }
       // Sign-in/sign-up while already on the page is handled by handleAuthSuccess,
       // so it can route new users through onboarding first.
@@ -1496,10 +1559,20 @@ export default function App() {
 
   const handleStart = () => setView("auth");
   const handleAuthSuccess = (isNewUser: boolean) => {
-    if (isNewUser) setView("onboarding");
-    else { setInApp(true); setAppView("dashboard"); }
+    if (isNewUser) {
+      setView("onboarding");
+    } else {
+      const uid = auth.currentUser?.uid;
+      if (uid) getUserProfile(uid).then(p => setProfile(p ?? EMPTY_PROFILE));
+      setInApp(true);
+      setAppView("dashboard");
+    }
   };
-  const handleOnboardFinish = () => { setInApp(true); setAppView("dashboard"); };
+  const handleOnboardFinish = (newProfile: UserProfile) => {
+    setProfile(newProfile);
+    setInApp(true);
+    setAppView("dashboard");
+  };
   const handleLogout = () => signOut(auth);
 
   if (checkingSession) {
@@ -1510,7 +1583,7 @@ export default function App() {
     );
   }
 
-  if (inApp) return <AppShell view={appView} onNavigate={setAppView} onLogout={handleLogout} />;
+  if (inApp) return <AppShell view={appView} profile={profile} onProfileChange={setProfile} onNavigate={setAppView} onLogout={handleLogout} />;
   if (view === "landing") return <LandingPage onStart={handleStart} />;
   if (view === "auth") return <AuthPage onSuccess={handleAuthSuccess} onBack={() => setView("landing")} />;
   if (view === "onboarding") return <OnboardingPage onFinish={handleOnboardFinish} />;
