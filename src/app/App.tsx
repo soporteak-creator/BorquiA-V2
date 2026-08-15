@@ -19,6 +19,7 @@ import {
 import { auth, googleProvider } from "../lib/firebase";
 import { getUserProfile, saveUserProfile, deleteUserProfile, EMPTY_PROFILE, type UserProfile } from "../lib/profile";
 import { getDailyLog, saveDailyLog, getRecentDailyLogs, todayKey, dateKeyOffset, wellnessScore, EMPTY_DAILY_LOG, type DailyLog, type DailyLogEntry } from "../lib/dailyLog";
+import { getGoals, createGoal, updateGoalProgress, deleteGoal, type Goal } from "../lib/goals";
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -606,6 +607,10 @@ function OnboardingPage({ onFinish }: { onFinish: (profile: UserProfile) => void
     setSaving(true);
     const profile: UserProfile = { ...data, health: EMPTY_PROFILE.health };
     await saveUserProfile(uid, profile);
+    await Promise.all(data.goals.map(title => {
+      const meta = GOAL_META[title] ?? DEFAULT_GOAL_META;
+      return createGoal(uid, { title, target: meta.target, targetDate: null });
+    }));
     setSaving(false);
     onFinish(profile);
   };
@@ -1092,9 +1097,69 @@ function DayView() {
   );
 }
 
-function GoalsView({ profile }: { profile: UserProfile }) {
-  const today = new Date().toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" });
-  const goals = profile.goals.map(title => ({ title, ...(GOAL_META[title] ?? DEFAULT_GOAL_META) }));
+function formatDateKey(dateKey: string): string {
+  return new Date(dateKey + "T00:00:00").toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function GoalsView() {
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [formTitle, setFormTitle] = useState("");
+  const [formTarget, setFormTarget] = useState("");
+  const [formDate, setFormDate] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const uid = auth.currentUser?.uid;
+
+  const reload = () => {
+    if (!uid) { setLoading(false); return; }
+    return getGoals(uid).then(setGoals);
+  };
+
+  useEffect(() => { reload()?.finally(() => setLoading(false)); }, []);
+
+  const handleProgress = async (goal: Goal, delta: number) => {
+    if (!uid) return;
+    setUpdatingId(goal.id);
+    const history = await updateGoalProgress(uid, goal, goal.progress + delta);
+    setGoals(gs => gs.map(g => g.id === goal.id ? { ...g, progress: Math.max(0, Math.min(100, g.progress + delta)), history } : g));
+    setUpdatingId(null);
+  };
+
+  const handleCreate = async () => {
+    if (!uid || !formTitle.trim()) return;
+    setCreating(true);
+    await createGoal(uid, {
+      title: formTitle.trim(),
+      target: formTarget.trim() || (GOAL_META[formTitle.trim()]?.target ?? "Objetivo personal"),
+      targetDate: formDate || null,
+    });
+    await reload();
+    setCreating(false);
+    setShowForm(false);
+    setFormTitle(""); setFormTarget(""); setFormDate("");
+  };
+
+  const handleDelete = async () => {
+    if (!uid || !deleteId) return;
+    setDeleting(true);
+    await deleteGoal(uid, deleteId);
+    setGoals(gs => gs.filter(g => g.id !== deleteId));
+    setDeleting(false);
+    setDeleteId(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 size={24} className="text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -1103,44 +1168,110 @@ function GoalsView({ profile }: { profile: UserProfile }) {
           <h1 className="font-display text-2xl text-foreground">Mis Objetivos</h1>
           <p className="text-muted-foreground text-sm">{goals.length} objetivo{goals.length === 1 ? "" : "s"} activo{goals.length === 1 ? "" : "s"}</p>
         </div>
-        <button className="flex items-center gap-2 border border-border text-foreground px-4 py-2 rounded-xl text-sm font-medium hover:bg-muted transition-colors">
+        <button onClick={() => setShowForm(true)} className="flex items-center gap-2 border border-border text-foreground px-4 py-2 rounded-xl text-sm font-medium hover:bg-muted transition-colors">
           <Plus size={15} /> Nuevo objetivo
         </button>
       </div>
+
       {goals.length === 0 ? (
         <div className="bg-card rounded-3xl border border-border p-8 text-center">
           <Target size={24} className="text-muted-foreground mx-auto mb-3" />
           <p className="text-foreground font-medium text-sm mb-1">Aún no tienes objetivos</p>
-          <p className="text-muted-foreground text-sm">Los objetivos que elegiste al crear tu cuenta aparecerán aquí.</p>
+          <p className="text-muted-foreground text-sm">Crea uno para empezar a seguir tu progreso.</p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
-          {goals.map(({ title, Icon, color, target }) => (
-            <div key={title} className="bg-card rounded-3xl border border-border p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: `${color}18` }}>
-                    <Icon size={20} style={{ color }} />
+          {goals.map(goal => {
+            const { Icon, color } = GOAL_META[goal.title] ?? DEFAULT_GOAL_META;
+            const status = goal.progress >= 80 ? "Casi logrado" : goal.progress >= 40 ? "En progreso" : "Iniciando";
+            const statusClass = goal.progress >= 80 ? "bg-emerald-100 text-emerald-700" : goal.progress >= 40 ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700";
+            return (
+              <div key={goal.id} className="bg-card rounded-3xl border border-border p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `${color}18` }}>
+                      <Icon size={20} style={{ color }} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-foreground text-sm truncate">{goal.title}</h3>
+                      <p className="text-xs text-muted-foreground truncate">{goal.target}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground text-sm">{title}</h3>
-                    <p className="text-xs text-muted-foreground">{target}</p>
+                  <button onClick={() => setDeleteId(goal.id)} className="text-muted-foreground hover:text-red-500 transition-colors shrink-0">
+                    <X size={15} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold" style={{ color }}>{goal.progress}%</span>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => handleProgress(goal, -10)} disabled={updatingId === goal.id || goal.progress <= 0}
+                      className="w-6 h-6 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-40 text-xs font-bold">−</button>
+                    <button onClick={() => handleProgress(goal, 10)} disabled={updatingId === goal.id || goal.progress >= 100}
+                      className="w-6 h-6 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-40 text-xs font-bold">+</button>
                   </div>
                 </div>
-                <span className="text-xs font-semibold" style={{ color }}>0%</span>
+                <ProgressBar value={goal.progress} color={color} />
+                <div className="flex items-center justify-between mt-3 flex-wrap gap-1">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Calendar size={11} /> Inicio: {formatDateKey(goal.startedAt)}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusClass}`}>{status}</span>
+                </div>
+                {goal.targetDate && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                    <Clock size={11} /> Meta: {formatDateKey(goal.targetDate)}
+                  </div>
+                )}
               </div>
-              <ProgressBar value={0} color={color} />
-              <div className="flex items-center justify-between mt-3">
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar size={11} /> Inicio: {today}
-                </div>
-                <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">
-                  Iniciando
-                </span>
+            );
+          })}
+        </div>
+      )}
+
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setShowForm(false)} />
+          <div className="relative z-10 bg-card rounded-3xl border border-border p-6 w-full max-w-sm shadow-xl">
+            <h3 className="font-semibold text-foreground mb-4">Nuevo objetivo</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Título</label>
+                <input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Ej: Meditar todos los días"
+                  className="w-full bg-input-background rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Meta (opcional)</label>
+                <input value={formTarget} onChange={e => setFormTarget(e.target.value)} placeholder="Ej: 10 min diarios"
+                  className="w-full bg-input-background rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Fecha objetivo (opcional)</label>
+                <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)}
+                  className="w-full bg-input-background rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
               </div>
             </div>
-          ))}
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowForm(false)} disabled={creating} className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-xl hover:bg-muted transition-colors text-sm disabled:opacity-60">
+                Cancelar
+              </button>
+              <button onClick={handleCreate} disabled={creating || !formTitle.trim()} className="flex-1 bg-primary text-primary-foreground font-semibold py-2.5 rounded-xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+                {creating && <Loader2 size={14} className="animate-spin" />} Crear
+              </button>
+            </div>
+          </div>
         </div>
+      )}
+
+      {deleteId && (
+        <ConfirmDialog
+          title="Eliminar objetivo"
+          description="Se eliminará este objetivo y su historial de progreso. Esta acción no se puede deshacer."
+          confirmLabel="Eliminar"
+          danger
+          loading={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteId(null)}
+        />
       )}
     </div>
   );
@@ -1802,7 +1933,7 @@ function AppShell({ view, profile, onProfileChange, onNavigate, onLogout }: { vi
         <main className="flex-1 p-5 md:p-8 overflow-y-auto">
           {view === "dashboard" && <DashboardView profile={profile} onNavigate={onNavigate} />}
           {view === "health" && <HealthView profile={profile} onProfileChange={onProfileChange} />}
-          {view === "goals" && <GoalsView profile={profile} />}
+          {view === "goals" && <GoalsView />}
           {view === "day" && <DayView />}
           {view === "stats" && <StatsView />}
           {view === "ai" && <AIView />}
