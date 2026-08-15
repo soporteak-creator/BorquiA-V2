@@ -18,6 +18,7 @@ import {
 } from "firebase/auth";
 import { auth, googleProvider } from "../lib/firebase";
 import { getUserProfile, saveUserProfile, deleteUserProfile, EMPTY_PROFILE, type UserProfile } from "../lib/profile";
+import { getDailyLog, saveDailyLog, getRecentDailyLogs, todayKey, dateKeyOffset, wellnessScore, EMPTY_DAILY_LOG, type DailyLog, type DailyLogEntry } from "../lib/dailyLog";
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -41,22 +42,7 @@ interface ChatMessage {
 }
 
 // ── Mock Data ─────────────────────────────────────────────────
-const SLEEP_DATA = [
-  { day: "Lun", horas: 7.2 }, { day: "Mar", horas: 6.8 }, { day: "Mié", horas: 7.5 },
-  { day: "Jue", horas: 8.0 }, { day: "Vie", horas: 6.5 }, { day: "Sáb", horas: 9.0 }, { day: "Dom", horas: 7.8 },
-];
-const ACTIVITY_DATA = [
-  { day: "Lun", min: 35 }, { day: "Mar", min: 0 }, { day: "Mié", min: 45 },
-  { day: "Jue", min: 30 }, { day: "Vie", min: 60 }, { day: "Sáb", min: 90 }, { day: "Dom", min: 20 },
-];
-const WATER_DATA = [
-  { day: "Lun", vasos: 6 }, { day: "Mar", vasos: 8 }, { day: "Mié", vasos: 7 },
-  { day: "Jue", vasos: 5 }, { day: "Vie", vasos: 9 }, { day: "Sáb", vasos: 8 }, { day: "Dom", vasos: 6 },
-];
-const MONTHLY_DATA = [
-  { week: "Sem 1", sueño: 7.1, actividad: 28 }, { week: "Sem 2", sueño: 7.4, actividad: 35 },
-  { week: "Sem 3", sueño: 6.9, actividad: 42 }, { week: "Sem 4", sueño: 7.8, actividad: 50 },
-];
+const WEEKDAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const GOAL_META: Record<string, { Icon: typeof Moon; color: string; target: string }> = {
   "Mejorar mi sueño": { Icon: Moon, color: "#6366f1", target: "8h de sueño diario" },
   "Aumentar actividad física": { Icon: Activity, color: "#147A60", target: "30 min/día de ejercicio" },
@@ -760,9 +746,39 @@ function OnboardingPage({ onFinish }: { onFinish: (profile: UserProfile) => void
 
 // ── App Views ──────────────────────────────────────────────────
 
+const MOOD_EMOJI = ["", "😞", "😕", "😐", "😊", "😄"];
+
+function metricTrend(todayVal: number, yesterdayVal: number | null): "up" | "down" | "stable" {
+  if (yesterdayVal === null) return "stable";
+  if (todayVal > yesterdayVal) return "up";
+  if (todayVal < yesterdayVal) return "down";
+  return "stable";
+}
+
 function DashboardView({ profile, onNavigate }: { profile: UserProfile; onNavigate: (v: View) => void }) {
   const today = new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" });
   const name = profile.name.trim();
+  const [todayLog, setTodayLog] = useState<DailyLog | null>(null);
+  const [yesterdayLog, setYesterdayLog] = useState<DailyLog | null>(null);
+  const [loadingLog, setLoadingLog] = useState(true);
+
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) { setLoadingLog(false); return; }
+    Promise.all([
+      getDailyLog(uid, todayKey()),
+      getDailyLog(uid, dateKeyOffset(-1)),
+    ]).then(([t, y]) => {
+      setTodayLog(t);
+      setYesterdayLog(y);
+      setLoadingLog(false);
+    });
+  }, []);
+
+  const score = todayLog ? wellnessScore(todayLog) : 0;
+  const prevScore = yesterdayLog ? wellnessScore(yesterdayLog) : null;
+  const scoreDiff = prevScore !== null ? score - prevScore : null;
+  const scoreLabel = score >= 75 ? "Muy bien" : score >= 50 ? "Bien" : score >= 25 ? "Regular" : "Recién empezando";
 
   return (
     <div className="space-y-6">
@@ -776,68 +792,89 @@ function DashboardView({ profile, onNavigate }: { profile: UserProfile; onNaviga
         </button>
       </div>
 
-      {/* Wellness score */}
-      <div className="bg-card rounded-3xl border border-border p-6">
-        <div className="flex flex-col sm:flex-row items-center sm:items-center gap-6">
-          <div className="relative shrink-0" style={{ width: 100, height: 100 }}>
-            <WellnessRing value={78} size={100} />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-bold text-2xl text-foreground leading-none">78</span>
-              <span className="text-muted-foreground text-xs">/100</span>
-            </div>
-          </div>
-          <div className="flex-1 min-w-0 text-center sm:text-left">
-            <div className="flex items-center justify-center sm:justify-start gap-2 mb-1 flex-wrap">
-              <h2 className="font-semibold text-foreground">Puntaje de bienestar</h2>
-              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Muy bien</span>
-            </div>
-            <p className="text-muted-foreground text-sm mb-4">+5 puntos respecto a ayer. ¡Vas en la dirección correcta!</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: "Sueño", val: "7.5h", ok: true, icon: Moon },
-                { label: "Agua", val: "3/8", ok: false, icon: Droplets },
-                { label: "Actividad", val: "0 min", ok: false, icon: Activity },
-                { label: "Ánimo", val: "😊", ok: true, icon: Smile },
-              ].map(({ label, val, ok, icon: Icon }) => (
-                <div key={label} className={`rounded-2xl px-3 py-2 text-center ${ok ? "bg-emerald-50" : "bg-amber-50"}`}>
-                  <Icon size={14} className={`mx-auto mb-1 ${ok ? "text-emerald-600" : "text-amber-500"}`} />
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                  <p className={`text-xs font-semibold ${ok ? "text-emerald-700" : "text-amber-600"}`}>{val}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+      {loadingLog ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={24} className="text-primary animate-spin" />
         </div>
-      </div>
-
-      {/* Metric cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { icon: Moon, label: "Sueño", value: "7.5", unit: "horas", trend: "up" as const, color: "#6366f1", update: "Esta noche" },
-          { icon: Droplets, label: "Hidratación", value: "3", unit: "/ 8 vasos", trend: "down" as const, color: "#0ea5e9", update: "Actualizar" },
-          { icon: Activity, label: "Actividad", value: "0", unit: "min hoy", trend: "down" as const, color: "#147A60", update: "Registrar" },
-          { icon: Scale, label: "Peso", value: "68.2", unit: "kg", trend: "stable" as const, color: "#F59E0B", update: "Hace 2 días" },
-        ].map(({ icon: Icon, label, value, unit, trend, color, update }) => (
-          <div key={label} className="bg-card rounded-3xl border border-border p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${color}18` }}>
-                <Icon size={15} style={{ color }} />
+      ) : !todayLog ? (
+        <div className="bg-card rounded-3xl border border-border p-8 text-center">
+          <Sun size={24} className="text-muted-foreground mx-auto mb-3" />
+          <p className="text-foreground font-medium text-sm mb-1">Aún no has registrado tu día de hoy</p>
+          <p className="text-muted-foreground text-sm mb-4">Registra tu agua, sueño, actividad y ánimo para ver tu puntaje de bienestar aquí.</p>
+          <button onClick={() => onNavigate("day")} className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-opacity">
+            <Plus size={15} /> Registrar ahora
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Wellness score */}
+          <div className="bg-card rounded-3xl border border-border p-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-center gap-6">
+              <div className="relative shrink-0" style={{ width: 100, height: 100 }}>
+                <WellnessRing value={score} size={100} />
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="font-bold text-2xl text-foreground leading-none">{score}</span>
+                  <span className="text-muted-foreground text-xs">/100</span>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 text-center sm:text-left">
+                <div className="flex items-center justify-center sm:justify-start gap-2 mb-1 flex-wrap">
+                  <h2 className="font-semibold text-foreground">Puntaje de bienestar</h2>
+                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{scoreLabel}</span>
+                </div>
+                <p className="text-muted-foreground text-sm mb-4">
+                  {scoreDiff === null ? "Aún no tienes registro de ayer para comparar." :
+                    scoreDiff > 0 ? `+${scoreDiff} puntos respecto a ayer. ¡Vas en la dirección correcta!` :
+                    scoreDiff < 0 ? `${scoreDiff} puntos respecto a ayer.` : "Igual que ayer."}
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "Sueño", val: `${todayLog.sleep}h`, ok: todayLog.sleep >= 7, icon: Moon },
+                    { label: "Agua", val: `${todayLog.water}/8`, ok: todayLog.water >= 6, icon: Droplets },
+                    { label: "Actividad", val: `${todayLog.activity} min`, ok: todayLog.activity >= 20, icon: Activity },
+                    { label: "Ánimo", val: MOOD_EMOJI[todayLog.mood] ?? "😐", ok: todayLog.mood >= 4, icon: Smile },
+                  ].map(({ label, val, ok, icon: Icon }) => (
+                    <div key={label} className={`rounded-2xl px-3 py-2 text-center ${ok ? "bg-emerald-50" : "bg-amber-50"}`}>
+                      <Icon size={14} className={`mx-auto mb-1 ${ok ? "text-emerald-600" : "text-amber-500"}`} />
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className={`text-xs font-semibold ${ok ? "text-emerald-700" : "text-amber-600"}`}>{val}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="flex items-end gap-1 mb-2">
-              <span className="text-2xl font-bold text-foreground">{value}</span>
-              <span className="text-xs text-muted-foreground mb-0.5">{unit}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {trend === "up" ? <TrendingUp size={11} className="text-emerald-500" /> : trend === "down" ? <TrendingDown size={11} className="text-amber-500" /> : <span className="w-3 h-0.5 bg-muted-foreground rounded-full inline-block" />}
-              <span className={`text-xs ${trend === "up" ? "text-emerald-600" : trend === "down" ? "text-amber-600" : "text-muted-foreground"}`}>
-                {trend === "up" ? "Mejorando" : trend === "down" ? "Atención" : "Estable"} · {update}
-              </span>
-            </div>
           </div>
-        ))}
-      </div>
+
+          {/* Metric cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { icon: Moon, label: "Sueño", value: String(todayLog.sleep), unit: "horas", trend: metricTrend(todayLog.sleep, yesterdayLog?.sleep ?? null), color: "#6366f1", update: "Anoche" },
+              { icon: Droplets, label: "Hidratación", value: String(todayLog.water), unit: "/ 8 vasos", trend: metricTrend(todayLog.water, yesterdayLog?.water ?? null), color: "#0ea5e9", update: "Hoy" },
+              { icon: Activity, label: "Actividad", value: String(todayLog.activity), unit: "min hoy", trend: metricTrend(todayLog.activity, yesterdayLog?.activity ?? null), color: "#147A60", update: "Hoy" },
+              { icon: Scale, label: "Peso", value: profile.weight || "—", unit: profile.weight ? "kg" : "Sin registrar", trend: "stable" as const, color: "#F59E0B", update: "Desde tu perfil" },
+            ].map(({ icon: Icon, label, value, unit, trend, color, update }) => (
+              <div key={label} className="bg-card rounded-3xl border border-border p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${color}18` }}>
+                    <Icon size={15} style={{ color }} />
+                  </div>
+                </div>
+                <div className="flex items-end gap-1 mb-2">
+                  <span className="text-2xl font-bold text-foreground">{value}</span>
+                  <span className="text-xs text-muted-foreground mb-0.5">{unit}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {trend === "up" ? <TrendingUp size={11} className="text-emerald-500" /> : trend === "down" ? <TrendingDown size={11} className="text-amber-500" /> : <span className="w-3 h-0.5 bg-muted-foreground rounded-full inline-block" />}
+                  <span className={`text-xs ${trend === "up" ? "text-emerald-600" : trend === "down" ? "text-amber-600" : "text-muted-foreground"}`}>
+                    {trend === "up" ? "Mejorando" : trend === "down" ? "Atención" : "Estable"} · {update}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Quick actions + Reminders */}
       <div className="grid lg:grid-cols-3 gap-4">
@@ -886,25 +923,58 @@ function DashboardView({ profile, onNavigate }: { profile: UserProfile; onNaviga
 }
 
 function DayView() {
-  const [water, setWater] = useState(3);
-  const [sleep, setSleep] = useState(7.5);
-  const [activity, setActivity] = useState(0);
-  const [mood, setMood] = useState(4);
-  const [notes, setNotes] = useState("");
+  const [water, setWater] = useState(EMPTY_DAILY_LOG.water);
+  const [sleep, setSleep] = useState(EMPTY_DAILY_LOG.sleep);
+  const [activity, setActivity] = useState(EMPTY_DAILY_LOG.activity);
+  const [mood, setMood] = useState(EMPTY_DAILY_LOG.mood);
+  const [notes, setNotes] = useState(EMPTY_DAILY_LOG.notes);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  const today = new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) { setLoading(false); return; }
+    getDailyLog(uid, todayKey()).then(log => {
+      if (log) {
+        setWater(log.water);
+        setSleep(log.sleep);
+        setActivity(log.activity);
+        setMood(log.mood);
+        setNotes(log.notes);
+      }
+      setLoading(false);
+    });
+  }, []);
 
   const moods = [{ v: 1, e: "😞" }, { v: 2, e: "😕" }, { v: 3, e: "😐" }, { v: 4, e: "😊" }, { v: 5, e: "😄" }];
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setSaving(true);
+    const log: DailyLog = { water, sleep, activity, mood, notes };
+    await saveDailyLog(uid, todayKey(), log);
+    setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 size={24} className="text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="font-display text-2xl text-foreground">Mi Día</h1>
-        <p className="text-muted-foreground text-sm">Jueves, 14 de agosto de 2026</p>
+        <p className="text-muted-foreground text-sm capitalize">{today}</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -920,12 +990,12 @@ function DayView() {
             </div>
           </div>
           <div className="flex items-center justify-center gap-4 mb-4">
-            <button onClick={() => setWater(Math.max(0, water - 1))} className="w-10 h-10 rounded-full border-2 border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors font-bold text-lg">−</button>
+            <button onClick={() => setWater(w => Math.max(0, w - 1))} className="w-10 h-10 rounded-full border-2 border-border flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors font-bold text-lg">−</button>
             <div className="text-center">
               <span className="text-4xl font-bold text-foreground">{water}</span>
               <span className="text-muted-foreground text-sm"> / 8</span>
             </div>
-            <button onClick={() => setWater(Math.min(8, water + 1))} className="w-10 h-10 rounded-full bg-sky-50 border-2 border-sky-200 flex items-center justify-center text-sky-500 hover:bg-sky-100 transition-colors font-bold text-lg">+</button>
+            <button onClick={() => setWater(w => Math.min(8, w + 1))} className="w-10 h-10 rounded-full bg-sky-50 border-2 border-sky-200 flex items-center justify-center text-sky-500 hover:bg-sky-100 transition-colors font-bold text-lg">+</button>
           </div>
           <div className="flex gap-1.5 justify-center">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -1015,8 +1085,8 @@ function DayView() {
           className="w-full bg-input-background rounded-2xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
       </div>
 
-      <button onClick={handleSave} className={`w-full py-3.5 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"}`}>
-        {saved ? <><CheckCircle size={16} /> ¡Registro guardado!</> : "Guardar registro del día"}
+      <button onClick={handleSave} disabled={saving} className={`w-full py-3.5 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"}`}>
+        {saving ? <><Loader2 size={16} className="animate-spin" /> Guardando...</> : saved ? <><CheckCircle size={16} /> ¡Registro guardado!</> : "Guardar registro del día"}
       </button>
     </div>
   );
@@ -1076,8 +1146,80 @@ function GoalsView({ profile }: { profile: UserProfile }) {
   );
 }
 
+function lastNDays(n: number, from: Date = new Date()): string[] {
+  return Array.from({ length: n }, (_, i) => dateKeyOffset(-(n - 1 - i), from));
+}
+
+function avgOf(logs: DailyLog[], key: "sleep" | "activity" | "water"): number {
+  if (!logs.length) return 0;
+  return logs.reduce((s, l) => s + l[key], 0) / logs.length;
+}
+
 function StatsView() {
   const [period, setPeriod] = useState<"week" | "month">("week");
+  const [entries, setEntries] = useState<DailyLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) { setLoading(false); return; }
+    getRecentDailyLogs(uid, 28).then(e => { setEntries(e); setLoading(false); });
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 size={24} className="text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (entries.length === 0) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="font-display text-2xl text-foreground">Estadísticas</h1>
+          <p className="text-muted-foreground text-sm">Tu evolución de bienestar</p>
+        </div>
+        <div className="bg-card rounded-3xl border border-border p-8 text-center">
+          <BarChart2 size={24} className="text-muted-foreground mx-auto mb-3" />
+          <p className="text-foreground font-medium text-sm mb-1">Aún no hay datos suficientes</p>
+          <p className="text-muted-foreground text-sm">Registra tu día en "Mi Día" y aquí verás tu evolución.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const logMap = new Map(entries.map(e => [e.date, e.log]));
+  const last7 = lastNDays(7);
+  const last28 = lastNDays(28);
+
+  const weekChart = last7.map(date => {
+    const log = logMap.get(date);
+    return {
+      day: WEEKDAY_LABELS[new Date(date + "T00:00:00").getDay()],
+      horas: log?.sleep ?? 0,
+      min: log?.activity ?? 0,
+      vasos: log?.water ?? 0,
+    };
+  });
+
+  const monthChart = [0, 1, 2, 3].map(i => {
+    const chunk = last28.slice(i * 7, i * 7 + 7).map(d => logMap.get(d)).filter((l): l is DailyLog => !!l);
+    return {
+      week: `Sem ${i + 1}`,
+      sueño: chunk.length ? Math.round(avgOf(chunk, "sleep") * 10) / 10 : 0,
+      actividad: chunk.length ? Math.round(avgOf(chunk, "activity")) : 0,
+    };
+  });
+
+  const thisWeekLogs = last7.map(d => logMap.get(d)).filter((l): l is DailyLog => !!l);
+  const prevWeekLogs = lastNDays(14).slice(0, 7).map(d => logMap.get(d)).filter((l): l is DailyLog => !!l);
+  const sleepAvg = avgOf(thisWeekLogs, "sleep");
+  const activityAvg = avgOf(thisWeekLogs, "activity");
+  const waterAvg = avgOf(thisWeekLogs, "water");
+  const sleepAvgPrev = avgOf(prevWeekLogs, "sleep");
+  const activityAvgPrev = avgOf(prevWeekLogs, "activity");
 
   return (
     <div className="space-y-5">
@@ -1097,15 +1239,15 @@ function StatsView() {
 
       <div className="grid md:grid-cols-3 gap-4 mb-2">
         {[
-          { label: "Sueño promedio", value: "7.5h", trend: "up", sub: "vs 7.1h semana anterior" },
-          { label: "Actividad promedio", value: "40 min", trend: "up", sub: "vs 28 min semana anterior" },
-          { label: "Hidratación promedio", value: "7 vasos", trend: "stable", sub: "Objetivo: 8 vasos" },
+          { label: "Sueño promedio", value: `${Math.round(sleepAvg * 10) / 10}h`, trend: metricTrend(sleepAvg, prevWeekLogs.length ? sleepAvgPrev : null), sub: prevWeekLogs.length ? `vs ${Math.round(sleepAvgPrev * 10) / 10}h semana anterior` : "Sin datos de la semana anterior" },
+          { label: "Actividad promedio", value: `${Math.round(activityAvg)} min`, trend: metricTrend(activityAvg, prevWeekLogs.length ? activityAvgPrev : null), sub: prevWeekLogs.length ? `vs ${Math.round(activityAvgPrev)} min semana anterior` : "Sin datos de la semana anterior" },
+          { label: "Hidratación promedio", value: `${Math.round(waterAvg * 10) / 10} vasos`, trend: "stable" as const, sub: "Objetivo: 8 vasos" },
         ].map(({ label, value, trend, sub }) => (
           <div key={label} className="bg-card rounded-2xl border border-border p-5">
             <p className="text-xs text-muted-foreground mb-1">{label}</p>
             <p className="text-2xl font-bold text-foreground mb-1">{value}</p>
             <div className="flex items-center gap-1">
-              {trend === "up" ? <TrendingUp size={11} className="text-emerald-500" /> : null}
+              {trend === "up" ? <TrendingUp size={11} className="text-emerald-500" /> : trend === "down" ? <TrendingDown size={11} className="text-amber-500" /> : null}
               <span className="text-xs text-muted-foreground">{sub}</span>
             </div>
           </div>
@@ -1117,12 +1259,12 @@ function StatsView() {
         <h3 className="font-semibold text-foreground mb-1">Horas de sueño</h3>
         <p className="text-xs text-muted-foreground mb-5">Objetivo: 8h por noche</p>
         <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={period === "week" ? SLEEP_DATA : MONTHLY_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+          <LineChart data={period === "week" ? weekChart : monthChart} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
             <XAxis dataKey={period === "week" ? "day" : "week"} tick={{ fontSize: 11, fill: "#5E7A72" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: "#5E7A72" }} axisLine={false} tickLine={false} domain={[4, 10]} />
+            <YAxis tick={{ fontSize: 11, fill: "#5E7A72" }} axisLine={false} tickLine={false} domain={[0, 10]} />
             <Tooltip content={<ChartTooltip />} />
-            <Line type="monotone" dataKey="horas" stroke="#6366f1" strokeWidth={2.5} dot={{ fill: "#6366f1", r: 4 }} activeDot={{ r: 6 }} />
+            <Line type="monotone" dataKey={period === "week" ? "horas" : "sueño"} stroke="#6366f1" strokeWidth={2.5} dot={{ fill: "#6366f1", r: 4 }} activeDot={{ r: 6 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -1132,7 +1274,7 @@ function StatsView() {
         <h3 className="font-semibold text-foreground mb-1">Actividad física</h3>
         <p className="text-xs text-muted-foreground mb-5">Minutos de actividad por día</p>
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={period === "week" ? ACTIVITY_DATA : MONTHLY_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+          <BarChart data={period === "week" ? weekChart : monthChart} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
             <XAxis dataKey={period === "week" ? "day" : "week"} tick={{ fontSize: 11, fill: "#5E7A72" }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: "#5E7A72" }} axisLine={false} tickLine={false} />
@@ -1145,9 +1287,9 @@ function StatsView() {
       {/* Water chart */}
       <div className="bg-card rounded-3xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-1">Hidratación diaria</h3>
-        <p className="text-xs text-muted-foreground mb-5">Vasos de agua registrados</p>
+        <p className="text-xs text-muted-foreground mb-5">Vasos de agua registrados esta semana</p>
         <ResponsiveContainer width="100%" height={180}>
-          <AreaChart data={WATER_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+          <AreaChart data={weekChart} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2} />
