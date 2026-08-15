@@ -98,7 +98,7 @@ function ProgressBar({ value, color = "#147A60" }: { value: number; color?: stri
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-lg">
+    <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg">
       <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
       <p className="text-sm font-semibold text-foreground">{payload[0].value}</p>
     </div>
@@ -112,21 +112,21 @@ function ConfirmDialog({ title, description, confirmLabel, danger, loading, erro
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
       <div className="fixed inset-0 bg-black/40" onClick={onCancel} />
-      <div className="relative z-10 bg-card rounded-3xl border border-border p-6 w-full max-w-sm shadow-xl">
+      <div className="relative z-10 bg-card rounded-2xl border border-border p-6 w-full max-w-sm shadow-xl">
         <h3 className="font-semibold text-foreground mb-2">{title}</h3>
         <p className="text-muted-foreground text-sm leading-relaxed mb-4">{description}</p>
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2 mb-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-start gap-2 mb-4">
             <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
             <p className="text-red-600 text-xs leading-relaxed">{error}</p>
           </div>
         )}
         <div className="flex gap-3">
-          <button onClick={onCancel} disabled={loading} className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-xl hover:bg-muted transition-colors text-sm disabled:opacity-60">
+          <button onClick={onCancel} disabled={loading} className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-lg hover:bg-muted transition-colors text-sm disabled:opacity-60">
             Cancelar
           </button>
           <button onClick={onConfirm} disabled={loading}
-            className={`flex-1 font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-opacity hover:opacity-90 ${danger ? "bg-red-600 text-white" : "bg-primary text-primary-foreground"}`}>
+            className={`flex-1 font-semibold py-2.5 rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-opacity hover:opacity-90 ${danger ? "bg-red-600 text-white" : "bg-primary text-primary-foreground"}`}>
             {loading && <Loader2 size={14} className="animate-spin" />}
             {confirmLabel}
           </button>
@@ -140,7 +140,7 @@ function ConfirmDialog({ title, description, confirmLabel, danger, loading, erro
 
 function HeroPreviewCard() {
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20 w-full max-w-sm shadow-2xl">
+    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 w-full max-w-sm shadow-2xl">
       <div className="flex items-center gap-3 mb-5">
         <div className="w-9 h-9 rounded-full bg-emerald-400/20 flex items-center justify-center">
           <Heart size={18} className="text-emerald-300" />
@@ -172,7 +172,7 @@ function HeroPreviewCard() {
           { label: "Actividad", val: "35 min", ok: true, icon: Activity },
           { label: "Ánimo", val: "Bien 😊", ok: true, icon: Smile },
         ].map(({ label, val, ok, icon: Icon }) => (
-          <div key={label} className={`rounded-2xl px-3 py-2 flex items-center gap-2 ${ok ? "bg-emerald-400/15" : "bg-amber-400/15"}`}>
+          <div key={label} className={`rounded-xl px-3 py-2 flex items-center gap-2 ${ok ? "bg-emerald-400/15" : "bg-amber-400/15"}`}>
             <Icon size={13} className={ok ? "text-emerald-300" : "text-amber-300"} />
             <div>
               <p className="text-white/40 text-[10px]">{label}</p>
@@ -221,14 +221,14 @@ function LandingPage({ onStart }: { onStart: () => void }) {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Heart size={16} className="text-primary-foreground" />
             </div>
             <span className="font-semibold text-foreground tracking-tight">BorquIA</span>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={onStart} className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block">Iniciar sesión</button>
-            <button onClick={onStart} className="text-sm font-medium bg-primary text-primary-foreground px-4 py-2 rounded-xl hover:opacity-90 transition-opacity">
+            <button onClick={onStart} className="text-sm font-medium bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:opacity-90 transition-opacity">
               Comenzar gratis
             </button>
           </div>
@@ -251,10 +251,10 @@ function LandingPage({ onStart }: { onStart: () => void }) {
                 Una plataforma inteligente para registrar, comprender y mejorar tus hábitos de salud de manera simple y segura.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <button onClick={onStart} className="flex items-center justify-center gap-2 bg-white text-[#0C3529] font-semibold px-7 py-3.5 rounded-2xl hover:bg-emerald-50 transition-colors text-sm">
+                <button onClick={onStart} className="flex items-center justify-center gap-2 bg-white text-[#0C3529] font-semibold px-7 py-3.5 rounded-xl hover:bg-emerald-50 transition-colors text-sm">
                   Comenzar ahora <ArrowRight size={16} />
                 </button>
-                <button className="flex items-center justify-center gap-2 border border-white/25 text-white px-7 py-3.5 rounded-2xl hover:bg-white/10 transition-colors text-sm">
+                <button className="flex items-center justify-center gap-2 border border-white/25 text-white px-7 py-3.5 rounded-xl hover:bg-white/10 transition-colors text-sm">
                   Conocer la plataforma <ChevronDown size={16} />
                 </button>
               </div>
@@ -283,17 +283,14 @@ function LandingPage({ onStart }: { onStart: () => void }) {
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { n: "01", title: "Crea tu perfil", desc: "Comparte solo lo que quieras. Sin datos obligatorios. Sin presión. Tú decides qué registrar.", icon: User },
-              { n: "02", title: "Registra tus hábitos", desc: "Un registro rápido al día es suficiente para comenzar. Agua, sueño, actividad, ánimo.", icon: Sun },
-              { n: "03", title: "Comprende tu bienestar", desc: "Visualiza tu evolución y recibe orientación personalizada de tu asistente de IA.", icon: BarChart2 },
-            ].map(({ n, title, desc, icon: Icon }) => (
+              { n: "01", title: "Crea tu perfil", desc: "Comparte solo lo que quieras. Sin datos obligatorios. Sin presión. Tú decides qué registrar." },
+              { n: "02", title: "Registra tus hábitos", desc: "Un registro rápido al día es suficiente para comenzar. Agua, sueño, actividad, ánimo." },
+              { n: "03", title: "Comprende tu bienestar", desc: "Visualiza tu evolución y recibe orientación personalizada de tu asistente de IA." },
+            ].map(({ n, title, desc }) => (
               <div key={n} className="relative">
-                <div className="bg-card rounded-3xl p-8 border border-border h-full">
+                <div className="bg-card rounded-2xl p-8 border border-border h-full">
                   <span className="font-display text-6xl text-border select-none absolute top-6 right-8">{n}</span>
-                  <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center mb-5">
-                    <Icon size={22} className="text-primary" />
-                  </div>
-                  <h3 className="font-display text-xl text-foreground mb-3">{title}</h3>
+                  <h3 className="font-display text-xl text-foreground mb-3 pt-1">{title}</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">{desc}</p>
                 </div>
               </div>
@@ -311,10 +308,8 @@ function LandingPage({ onStart }: { onStart: () => void }) {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map(({ icon: Icon, title, desc, color }) => (
-              <div key={title} className="bg-card rounded-3xl p-7 border border-border hover:shadow-md transition-shadow group">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style={{ background: `${color}18` }}>
-                  <Icon size={22} style={{ color }} />
-                </div>
+              <div key={title} className="bg-card rounded-2xl p-7 border border-border border-t-2 hover:shadow-md transition-shadow" style={{ borderTopColor: color }}>
+                <Icon size={20} className="mb-4" style={{ color }} />
                 <h3 className="font-semibold text-foreground mb-2">{title}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">{desc}</p>
               </div>
@@ -343,7 +338,7 @@ function LandingPage({ onStart }: { onStart: () => void }) {
               </div>
             </div>
             {/* Chat preview */}
-            <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/15">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/15">
               <div className="flex items-center gap-3 mb-5 pb-4 border-b border-white/15">
                 <div className="w-9 h-9 rounded-full bg-emerald-400/20 flex items-center justify-center">
                   <MessageSquare size={16} className="text-emerald-300" />
@@ -354,19 +349,19 @@ function LandingPage({ onStart }: { onStart: () => void }) {
                 </div>
               </div>
               <div className="space-y-3 mb-4">
-                <div className="bg-white/10 rounded-2xl rounded-tl-sm px-4 py-3 max-w-xs">
+                <div className="bg-white/10 rounded-xl rounded-tl-sm px-4 py-3 max-w-xs">
                   <p className="text-white/80 text-sm">Hola María 👋 ¿En qué puedo orientarte hoy?</p>
                 </div>
                 <div className="flex justify-end">
-                  <div className="bg-emerald-500/30 rounded-2xl rounded-tr-sm px-4 py-3 max-w-xs">
+                  <div className="bg-emerald-500/30 rounded-xl rounded-tr-sm px-4 py-3 max-w-xs">
                     <p className="text-white text-sm">¿Cómo puedo mejorar mi sueño?</p>
                   </div>
                 </div>
-                <div className="bg-white/10 rounded-2xl rounded-tl-sm px-4 py-3">
+                <div className="bg-white/10 rounded-xl rounded-tl-sm px-4 py-3">
                   <p className="text-white/80 text-sm">Basado en tus registros, duermes en promedio 7.5h. Un pequeño ajuste en tu hora de dormir podría ayudarte a alcanzar las 8h...</p>
                 </div>
               </div>
-              <div className="bg-amber-400/10 border border-amber-400/20 rounded-xl px-3 py-2">
+              <div className="bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
                 <p className="text-amber-300 text-xs flex items-center gap-1.5">
                   <Info size={11} /> Información general · No reemplaza la consulta médica
                 </p>
@@ -392,9 +387,7 @@ function LandingPage({ onStart }: { onStart: () => void }) {
               { icon: User, title: "Control total", desc: "Elimina tu cuenta y datos en cualquier momento" },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="text-center p-6">
-                <div className="w-12 h-12 rounded-2xl bg-secondary mx-auto flex items-center justify-center mb-4">
-                  <Icon size={20} className="text-primary" />
-                </div>
+                <Icon size={20} className="text-primary mx-auto mb-3" />
                 <h3 className="font-semibold text-foreground mb-2 text-sm">{title}</h3>
                 <p className="text-muted-foreground text-xs leading-relaxed">{desc}</p>
               </div>
@@ -409,7 +402,7 @@ function LandingPage({ onStart }: { onStart: () => void }) {
           <div className="text-center mb-12">
             <h2 className="font-display text-4xl text-foreground">Preguntas frecuentes</h2>
           </div>
-          <div className="bg-card rounded-3xl border border-border px-8 divide-y divide-border">
+          <div className="bg-card rounded-2xl border border-border px-8 divide-y divide-border">
             {FAQ_ITEMS.map((item) => <FAQItem key={item.q} {...item} />)}
           </div>
         </div>
@@ -420,7 +413,7 @@ function LandingPage({ onStart }: { onStart: () => void }) {
         <div className="max-w-2xl mx-auto px-6 text-center">
           <h2 className="font-display text-4xl text-foreground mb-4">Empieza hoy, sin compromiso</h2>
           <p className="text-muted-foreground mb-8">Gratis. Sin tarjeta de crédito. Sin datos obligatorios.</p>
-          <button onClick={onStart} className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-8 py-4 rounded-2xl hover:opacity-90 transition-opacity text-sm">
+          <button onClick={onStart} className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-8 py-4 rounded-xl hover:opacity-90 transition-opacity text-sm">
             Comenzar ahora <ArrowRight size={16} />
           </button>
         </div>
@@ -494,9 +487,9 @@ function AuthPage({ onSuccess, onBack }: { onSuccess: (isNewUser: boolean) => vo
         <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm mb-8">
           <ChevronDown size={16} className="rotate-90" /> Volver
         </button>
-        <div className="bg-card rounded-3xl border border-border p-8">
+        <div className="bg-card rounded-2xl border border-border p-8">
           <div className="flex items-center gap-2 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
               <Heart size={16} className="text-primary-foreground" />
             </div>
             <span className="font-semibold text-foreground">BorquIA</span>
@@ -513,20 +506,20 @@ function AuthPage({ onSuccess, onBack }: { onSuccess: (isNewUser: boolean) => vo
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">Nombre</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="María García" className="w-full bg-input-background rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                  placeholder="María García" className="w-full bg-input-background rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
               </div>
             )}
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">Correo electrónico</label>
               <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="tu@correo.com" className="w-full bg-input-background rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                placeholder="tu@correo.com" className="w-full bg-input-background rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">Contraseña</label>
               <div className="relative">
                 <input type={showPass ? "text" : "password"} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                  placeholder="••••••••" className="w-full bg-input-background rounded-xl px-4 py-3 pr-11 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                  placeholder="••••••••" className="w-full bg-input-background rounded-lg px-4 py-3 pr-11 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
                 <button onClick={() => setShowPass(!showPass)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                   {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -541,13 +534,13 @@ function AuthPage({ onSuccess, onBack }: { onSuccess: (isNewUser: boolean) => vo
           )}
 
           {error && (
-            <div className="mt-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2">
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-start gap-2">
               <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
               <p className="text-red-600 text-xs leading-relaxed">{error}</p>
             </div>
           )}
 
-          <button onClick={handleSubmit} disabled={loading} className="w-full mt-6 bg-primary text-primary-foreground font-semibold py-3.5 rounded-2xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+          <button onClick={handleSubmit} disabled={loading} className="w-full mt-6 bg-primary text-primary-foreground font-semibold py-3.5 rounded-xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
             {loading && <Loader2 size={16} className="animate-spin" />}
             {mode === "register" ? "Crear cuenta gratuita" : "Iniciar sesión"}
           </button>
@@ -558,7 +551,7 @@ function AuthPage({ onSuccess, onBack }: { onSuccess: (isNewUser: boolean) => vo
             <div className="flex-1 h-px bg-border" />
           </div>
 
-          <button onClick={handleGoogle} disabled={loading} className="w-full border border-border text-foreground font-medium py-3.5 rounded-2xl hover:bg-muted transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+          <button onClick={handleGoogle} disabled={loading} className="w-full border border-border text-foreground font-medium py-3.5 rounded-xl hover:bg-muted transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-60">
             <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
             Continuar con Google
           </button>
@@ -627,17 +620,17 @@ function OnboardingPage({ onFinish }: { onFinish: (profile: UserProfile) => void
           ))}
         </div>
 
-        <div className="bg-card rounded-3xl border border-border p-8">
+        <div className="bg-card rounded-2xl border border-border p-8">
           {step === 1 && (
             <div className="text-center">
-              <div className="w-16 h-16 rounded-3xl bg-secondary flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-6">
                 <Heart size={28} className="text-primary" />
               </div>
               <h2 className="font-display text-3xl text-foreground mb-3">Bienvenido a BorquIA</h2>
               <p className="text-muted-foreground text-sm leading-relaxed mb-6 max-w-sm mx-auto">
                 En los próximos pasos configuraremos tu experiencia. Solo comparte lo que te resulte cómodo. Sin datos obligatorios.
               </p>
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-left mb-6">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-left mb-6">
                 <p className="text-amber-700 text-xs flex items-start gap-2 leading-relaxed">
                   <Info size={13} className="shrink-0 mt-0.5" />
                   Esta aplicación entrega información general de bienestar y no reemplaza la evaluación de un profesional de la salud.
@@ -660,7 +653,7 @@ function OnboardingPage({ onFinish }: { onFinish: (profile: UserProfile) => void
                   <div key={key} className={full ? "col-span-2" : ""}>
                     <label className="block text-sm font-medium text-foreground mb-1.5">{label}</label>
                     <input value={(data as any)[key]} onChange={e => setData(d => ({ ...d, [key]: e.target.value }))}
-                      placeholder={placeholder} className="w-full bg-input-background rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                      placeholder={placeholder} className="w-full bg-input-background rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
                   </div>
                 ))}
               </div>
@@ -674,7 +667,7 @@ function OnboardingPage({ onFinish }: { onFinish: (profile: UserProfile) => void
               <div className="grid grid-cols-2 gap-3">
                 {STEP_GOALS.map(g => (
                   <button key={g} onClick={() => toggleArr("goals", g)}
-                    className={`text-left px-4 py-3 rounded-2xl border text-sm font-medium transition-all ${data.goals.includes(g) ? "bg-secondary border-primary text-primary" : "bg-muted border-transparent text-muted-foreground hover:border-border"}`}>
+                    className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${data.goals.includes(g) ? "bg-secondary border-primary text-primary" : "bg-muted border-transparent text-muted-foreground hover:border-border"}`}>
                     <span className="flex items-center gap-2">
                       {data.goals.includes(g) && <Check size={13} className="text-primary shrink-0" />}
                       {g}
@@ -692,7 +685,7 @@ function OnboardingPage({ onFinish }: { onFinish: (profile: UserProfile) => void
               <div className="grid grid-cols-2 gap-3">
                 {STEP_HABITS.map(h => (
                   <button key={h} onClick={() => toggleArr("habits", h)}
-                    className={`text-left px-4 py-3 rounded-2xl border text-sm font-medium transition-all ${data.habits.includes(h) ? "bg-secondary border-primary text-primary" : "bg-muted border-transparent text-muted-foreground hover:border-border"}`}>
+                    className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${data.habits.includes(h) ? "bg-secondary border-primary text-primary" : "bg-muted border-transparent text-muted-foreground hover:border-border"}`}>
                     <span className="flex items-center gap-2">
                       {data.habits.includes(h) && <Check size={13} className="text-primary shrink-0" />}
                       {h}
@@ -713,7 +706,7 @@ function OnboardingPage({ onFinish }: { onFinish: (profile: UserProfile) => void
                   { key: "evening", label: "Recordatorio vespertino", sub: "Para cerrar tu día y revisar tus hábitos" },
                   { key: "water", label: "Recordatorio de hidratación", sub: "Cada 2 horas durante el día" },
                 ].map(({ key, label, sub }) => (
-                  <div key={key} className="flex items-center justify-between p-4 bg-muted rounded-2xl">
+                  <div key={key} className="flex items-center justify-between p-4 bg-muted rounded-xl">
                     <div>
                       <p className="text-sm font-medium text-foreground">{label}</p>
                       <p className="text-xs text-muted-foreground">{sub}</p>
@@ -730,12 +723,12 @@ function OnboardingPage({ onFinish }: { onFinish: (profile: UserProfile) => void
 
           <div className="flex gap-3 mt-8">
             {step > 1 && (
-              <button onClick={() => setStep(s => s - 1)} className="flex-1 border border-border text-foreground font-medium py-3 rounded-2xl hover:bg-muted transition-colors text-sm">
+              <button onClick={() => setStep(s => s - 1)} className="flex-1 border border-border text-foreground font-medium py-3 rounded-xl hover:bg-muted transition-colors text-sm">
                 Atrás
               </button>
             )}
             <button onClick={() => step < 5 ? setStep(s => s + 1) : handleFinish()} disabled={saving}
-              className="flex-1 bg-primary text-primary-foreground font-semibold py-3 rounded-2xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+              className="flex-1 bg-primary text-primary-foreground font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
               {saving && <Loader2 size={15} className="animate-spin" />}
               {step === 5 ? "Ver mi dashboard" : "Continuar"} {!saving && <ChevronRight size={15} />}
             </button>
@@ -789,7 +782,7 @@ function DashboardView({ profile, onNavigate }: { profile: UserProfile; onNaviga
           <p className="text-muted-foreground text-sm capitalize">{today}</p>
           <h1 className="font-display text-2xl text-foreground">Buenos días{name ? `, ${name}` : ""} 👋</h1>
         </div>
-        <button onClick={() => onNavigate("day")} className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-opacity shrink-0 self-start">
+        <button onClick={() => onNavigate("day")} className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity shrink-0 self-start">
           <Plus size={15} /> Registrar hoy
         </button>
       </div>
@@ -799,18 +792,18 @@ function DashboardView({ profile, onNavigate }: { profile: UserProfile; onNaviga
           <Loader2 size={24} className="text-primary animate-spin" />
         </div>
       ) : !todayLog ? (
-        <div className="bg-card rounded-3xl border border-border p-8 text-center">
+        <div className="bg-card rounded-2xl border border-border p-8 text-center">
           <Sun size={24} className="text-muted-foreground mx-auto mb-3" />
           <p className="text-foreground font-medium text-sm mb-1">Aún no has registrado tu día de hoy</p>
           <p className="text-muted-foreground text-sm mb-4">Registra tu agua, sueño, actividad y ánimo para ver tu puntaje de bienestar aquí.</p>
-          <button onClick={() => onNavigate("day")} className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-opacity">
+          <button onClick={() => onNavigate("day")} className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
             <Plus size={15} /> Registrar ahora
           </button>
         </div>
       ) : (
         <>
           {/* Wellness score */}
-          <div className="bg-card rounded-3xl border border-border p-6">
+          <div className="bg-card rounded-2xl border border-border p-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-center gap-6">
               <div className="relative shrink-0" style={{ width: 100, height: 100 }}>
                 <WellnessRing value={score} size={100} />
@@ -836,7 +829,7 @@ function DashboardView({ profile, onNavigate }: { profile: UserProfile; onNaviga
                     { label: "Actividad", val: `${todayLog.activity} min`, ok: todayLog.activity >= 20, icon: Activity },
                     { label: "Ánimo", val: MOOD_EMOJI[todayLog.mood] ?? "😐", ok: todayLog.mood >= 4, icon: Smile },
                   ].map(({ label, val, ok, icon: Icon }) => (
-                    <div key={label} className={`rounded-2xl px-3 py-2 text-center ${ok ? "bg-emerald-50" : "bg-amber-50"}`}>
+                    <div key={label} className={`rounded-xl px-3 py-2 text-center ${ok ? "bg-emerald-50" : "bg-amber-50"}`}>
                       <Icon size={14} className={`mx-auto mb-1 ${ok ? "text-emerald-600" : "text-amber-500"}`} />
                       <p className="text-xs text-muted-foreground">{label}</p>
                       <p className={`text-xs font-semibold ${ok ? "text-emerald-700" : "text-amber-600"}`}>{val}</p>
@@ -855,12 +848,10 @@ function DashboardView({ profile, onNavigate }: { profile: UserProfile; onNaviga
               { icon: Activity, label: "Actividad", value: String(todayLog.activity), unit: "min hoy", trend: metricTrend(todayLog.activity, yesterdayLog?.activity ?? null), color: "#147A60", update: "Hoy" },
               { icon: Scale, label: "Peso", value: profile.weight || "—", unit: profile.weight ? "kg" : "Sin registrar", trend: "stable" as const, color: "#F59E0B", update: "Desde tu perfil" },
             ].map(({ icon: Icon, label, value, unit, trend, color, update }) => (
-              <div key={label} className="bg-card rounded-3xl border border-border p-5">
+              <div key={label} className="bg-card rounded-2xl border border-border p-5">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${color}18` }}>
-                    <Icon size={15} style={{ color }} />
-                  </div>
+                  <Icon size={16} style={{ color }} />
                 </div>
                 <div className="flex items-end gap-1 mb-2">
                   <span className="text-2xl font-bold text-foreground">{value}</span>
@@ -892,10 +883,8 @@ function DashboardView({ profile, onNavigate }: { profile: UserProfile; onNaviga
               { label: "Mi Día", icon: Sun, view: "day" as View, color: "#30B98A" },
             ].map(({ label, icon: Icon, view, color }) => (
               <button key={label} onClick={() => onNavigate(view)}
-                className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2 hover:shadow-md transition-shadow group">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${color}18` }}>
-                  <Icon size={18} style={{ color }} />
-                </div>
+                className="bg-card rounded-xl border border-border p-4 flex flex-col items-center gap-2 hover:shadow-md transition-shadow">
+                <Icon size={20} style={{ color }} />
                 <span className="text-xs font-medium text-foreground text-center">{label}</span>
               </button>
             ))}
@@ -909,7 +898,7 @@ function DashboardView({ profile, onNavigate }: { profile: UserProfile; onNaviga
               { text: "Completa tu registro diario", time: "Pendiente", ok: false },
               { text: "Revisa tus objetivos de agosto", time: "Esta semana", ok: true },
             ].map(({ text, time, ok }) => (
-              <div key={text} className={`flex items-start gap-3 p-3 rounded-2xl ${ok ? "bg-muted" : "bg-amber-50 border border-amber-100"}`}>
+              <div key={text} className={`flex items-start gap-3 p-3 rounded-xl ${ok ? "bg-muted" : "bg-amber-50 border border-amber-100"}`}>
                 <Bell size={14} className={`mt-0.5 shrink-0 ${ok ? "text-muted-foreground" : "text-amber-500"}`} />
                 <div>
                   <p className="text-xs font-medium text-foreground">{text}</p>
@@ -981,11 +970,9 @@ function DayView() {
 
       <div className="grid md:grid-cols-2 gap-4">
         {/* Water */}
-        <div className="bg-card rounded-3xl border border-border p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-2xl bg-sky-50 flex items-center justify-center">
-              <Droplets size={18} className="text-sky-500" />
-            </div>
+            <Droplets size={22} className="text-sky-500" />
             <div>
               <h3 className="font-semibold text-foreground">Hidratación</h3>
               <p className="text-xs text-muted-foreground">Objetivo: 8 vasos</p>
@@ -1007,11 +994,9 @@ function DayView() {
         </div>
 
         {/* Sleep */}
-        <div className="bg-card rounded-3xl border border-border p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center">
-              <Moon size={18} className="text-indigo-500" />
-            </div>
+            <Moon size={22} className="text-indigo-500" />
             <div>
               <h3 className="font-semibold text-foreground">Sueño anoche</h3>
               <p className="text-xs text-muted-foreground">Objetivo: 8 horas</p>
@@ -1029,11 +1014,9 @@ function DayView() {
         </div>
 
         {/* Activity */}
-        <div className="bg-card rounded-3xl border border-border p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
-              <Activity size={18} className="text-emerald-600" />
-            </div>
+            <Activity size={22} className="text-emerald-600" />
             <div>
               <h3 className="font-semibold text-foreground">Actividad física</h3>
               <p className="text-xs text-muted-foreground">Objetivo: 30 min/día</p>
@@ -1047,7 +1030,7 @@ function DayView() {
             className="w-full accent-primary" />
           <div className="flex gap-2 mt-3">
             {[15, 30, 45, 60].map(v => (
-              <button key={v} onClick={() => setActivity(v)} className={`flex-1 py-1.5 rounded-xl text-xs font-medium transition-colors ${activity === v ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-secondary"}`}>
+              <button key={v} onClick={() => setActivity(v)} className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${activity === v ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-secondary"}`}>
                 {v}m
               </button>
             ))}
@@ -1055,11 +1038,9 @@ function DayView() {
         </div>
 
         {/* Mood */}
-        <div className="bg-card rounded-3xl border border-border p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-2xl bg-pink-50 flex items-center justify-center">
-              <Smile size={18} className="text-pink-500" />
-            </div>
+            <Smile size={22} className="text-pink-500" />
             <div>
               <h3 className="font-semibold text-foreground">Estado de ánimo</h3>
               <p className="text-xs text-muted-foreground">¿Cómo te sientes hoy?</p>
@@ -1068,7 +1049,7 @@ function DayView() {
           <div className="flex justify-center gap-3">
             {moods.map(({ v, e }) => (
               <button key={v} onClick={() => setMood(v)}
-                className={`w-12 h-12 rounded-2xl text-2xl flex items-center justify-center transition-all ${mood === v ? "bg-pink-100 scale-110 shadow-md" : "bg-muted hover:bg-secondary"}`}>
+                className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${mood === v ? "bg-pink-100 scale-110 shadow-md" : "bg-muted hover:bg-secondary"}`}>
                 {e}
               </button>
             ))}
@@ -1080,14 +1061,14 @@ function DayView() {
       </div>
 
       {/* Notes */}
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-3">Notas del día</h3>
         <textarea value={notes} onChange={e => setNotes(e.target.value)}
           placeholder="¿Cómo fue tu día? ¿Algo que quieras recordar?"
-          className="w-full bg-input-background rounded-2xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
+          className="w-full bg-input-background rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
       </div>
 
-      <button onClick={handleSave} disabled={saving} className={`w-full py-3.5 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"}`}>
+      <button onClick={handleSave} disabled={saving} className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"}`}>
         {saving ? <><Loader2 size={16} className="animate-spin" /> Guardando...</> : saved ? <><CheckCircle size={16} /> ¡Registro guardado!</> : "Guardar registro del día"}
       </button>
     </div>
@@ -1165,13 +1146,13 @@ function GoalsView() {
           <h1 className="font-display text-2xl text-foreground">Mis Objetivos</h1>
           <p className="text-muted-foreground text-sm">{goals.length} objetivo{goals.length === 1 ? "" : "s"} activo{goals.length === 1 ? "" : "s"}</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="flex items-center gap-2 border border-border text-foreground px-4 py-2 rounded-xl text-sm font-medium hover:bg-muted transition-colors">
+        <button onClick={() => setShowForm(true)} className="flex items-center gap-2 border border-border text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors">
           <Plus size={15} /> Nuevo objetivo
         </button>
       </div>
 
       {goals.length === 0 ? (
-        <div className="bg-card rounded-3xl border border-border p-8 text-center">
+        <div className="bg-card rounded-2xl border border-border p-8 text-center">
           <Target size={24} className="text-muted-foreground mx-auto mb-3" />
           <p className="text-foreground font-medium text-sm mb-1">Aún no tienes objetivos</p>
           <p className="text-muted-foreground text-sm">Crea uno para empezar a seguir tu progreso.</p>
@@ -1183,12 +1164,10 @@ function GoalsView() {
             const status = goal.progress >= 80 ? "Casi logrado" : goal.progress >= 40 ? "En progreso" : "Iniciando";
             const statusClass = goal.progress >= 80 ? "bg-emerald-100 text-emerald-700" : goal.progress >= 40 ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700";
             return (
-              <div key={goal.id} className="bg-card rounded-3xl border border-border p-6">
+              <div key={goal.id} className="bg-card rounded-2xl border border-border p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `${color}18` }}>
-                      <Icon size={20} style={{ color }} />
-                    </div>
+                    <Icon size={20} className="shrink-0" style={{ color }} />
                     <div className="min-w-0">
                       <h3 className="font-semibold text-foreground text-sm truncate">{goal.title}</h3>
                       <p className="text-xs text-muted-foreground truncate">{goal.target}</p>
@@ -1228,30 +1207,30 @@ function GoalsView() {
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="fixed inset-0 bg-black/40" onClick={() => setShowForm(false)} />
-          <div className="relative z-10 bg-card rounded-3xl border border-border p-6 w-full max-w-sm shadow-xl">
+          <div className="relative z-10 bg-card rounded-2xl border border-border p-6 w-full max-w-sm shadow-xl">
             <h3 className="font-semibold text-foreground mb-4">Nuevo objetivo</h3>
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Título</label>
                 <input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Ej: Meditar todos los días"
-                  className="w-full bg-input-background rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                  className="w-full bg-input-background rounded-lg px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Meta (opcional)</label>
                 <input value={formTarget} onChange={e => setFormTarget(e.target.value)} placeholder="Ej: 10 min diarios"
-                  className="w-full bg-input-background rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                  className="w-full bg-input-background rounded-lg px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Fecha objetivo (opcional)</label>
                 <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)}
-                  className="w-full bg-input-background rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                  className="w-full bg-input-background rounded-lg px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowForm(false)} disabled={creating} className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-xl hover:bg-muted transition-colors text-sm disabled:opacity-60">
+              <button onClick={() => setShowForm(false)} disabled={creating} className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-lg hover:bg-muted transition-colors text-sm disabled:opacity-60">
                 Cancelar
               </button>
-              <button onClick={handleCreate} disabled={creating || !formTitle.trim()} className="flex-1 bg-primary text-primary-foreground font-semibold py-2.5 rounded-xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+              <button onClick={handleCreate} disabled={creating || !formTitle.trim()} className="flex-1 bg-primary text-primary-foreground font-semibold py-2.5 rounded-lg hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
                 {creating && <Loader2 size={14} className="animate-spin" />} Crear
               </button>
             </div>
@@ -1309,7 +1288,7 @@ function StatsView() {
           <h1 className="font-display text-2xl text-foreground">Estadísticas</h1>
           <p className="text-muted-foreground text-sm">Tu evolución de bienestar</p>
         </div>
-        <div className="bg-card rounded-3xl border border-border p-8 text-center">
+        <div className="bg-card rounded-2xl border border-border p-8 text-center">
           <BarChart2 size={24} className="text-muted-foreground mx-auto mb-3" />
           <p className="text-foreground font-medium text-sm mb-1">Aún no hay datos suficientes</p>
           <p className="text-muted-foreground text-sm">Registra tu día en "Mi Día" y aquí verás tu evolución.</p>
@@ -1356,7 +1335,7 @@ function StatsView() {
           <h1 className="font-display text-2xl text-foreground">Estadísticas</h1>
           <p className="text-muted-foreground text-sm">Tu evolución de bienestar</p>
         </div>
-        <div className="flex gap-1 bg-muted rounded-xl p-1">
+        <div className="flex gap-1 bg-muted rounded-lg p-1">
           {(["week", "month"] as const).map(p => (
             <button key={p} onClick={() => setPeriod(p)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${period === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
               {p === "week" ? "Semana" : "Mes"}
@@ -1371,7 +1350,7 @@ function StatsView() {
           { label: "Actividad promedio", value: `${Math.round(activityAvg)} min`, trend: metricTrend(activityAvg, prevWeekLogs.length ? activityAvgPrev : null), sub: prevWeekLogs.length ? `vs ${Math.round(activityAvgPrev)} min semana anterior` : "Sin datos de la semana anterior" },
           { label: "Hidratación promedio", value: `${Math.round(waterAvg * 10) / 10} vasos`, trend: "stable" as const, sub: "Objetivo: 8 vasos" },
         ].map(({ label, value, trend, sub }) => (
-          <div key={label} className="bg-card rounded-2xl border border-border p-5">
+          <div key={label} className="bg-card rounded-xl border border-border p-5">
             <p className="text-xs text-muted-foreground mb-1">{label}</p>
             <p className="text-2xl font-bold text-foreground mb-1">{value}</p>
             <div className="flex items-center gap-1">
@@ -1383,7 +1362,7 @@ function StatsView() {
       </div>
 
       {/* Sleep chart */}
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-1">Horas de sueño</h3>
         <p className="text-xs text-muted-foreground mb-5">Objetivo: 8h por noche</p>
         <ResponsiveContainer width="100%" height={200}>
@@ -1398,7 +1377,7 @@ function StatsView() {
       </div>
 
       {/* Activity chart */}
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-1">Actividad física</h3>
         <p className="text-xs text-muted-foreground mb-5">Minutos de actividad por día</p>
         <ResponsiveContainer width="100%" height={200}>
@@ -1413,7 +1392,7 @@ function StatsView() {
       </div>
 
       {/* Water chart */}
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-1">Hidratación diaria</h3>
         <p className="text-xs text-muted-foreground mb-5">Vasos de agua registrados esta semana</p>
         <ResponsiveContainer width="100%" height={180}>
@@ -1482,7 +1461,7 @@ function AIView({ profile }: { profile: UserProfile }) {
           <h1 className="font-display text-2xl text-foreground">Asistente IA</h1>
           <p className="text-muted-foreground text-sm">Orientación general de bienestar, no diagnósticos médicos.</p>
         </div>
-        <div className="bg-card rounded-3xl border border-border p-8 text-center">
+        <div className="bg-card rounded-2xl border border-border p-8 text-center">
           <Info size={24} className="text-muted-foreground mx-auto mb-3" />
           <p className="text-foreground font-medium text-sm mb-1">Revocaste el consentimiento de IA</p>
           <p className="text-muted-foreground text-sm">Puedes reactivarlo desde Mi Perfil → Privacidad y datos cuando quieras volver a usar el asistente.</p>
@@ -1498,7 +1477,7 @@ function AIView({ profile }: { profile: UserProfile }) {
         <p className="text-muted-foreground text-sm">Orientación general de bienestar, no diagnósticos médicos.</p>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-4 flex items-start gap-2">
+      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
         <Info size={14} className="text-amber-600 mt-0.5 shrink-0" />
         <p className="text-amber-700 text-xs leading-relaxed">
           Esta herramienta entrega <strong>información general de bienestar</strong> y no reemplaza la evaluación de un profesional de la salud. No realiza diagnósticos ni prescribe tratamientos.
@@ -1509,7 +1488,7 @@ function AIView({ profile }: { profile: UserProfile }) {
       {messages.length <= 1 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
           {SUGGESTED_QUESTIONS.map(q => (
-            <button key={q} onClick={() => send(q)} className="text-left px-4 py-3 bg-card border border-border rounded-2xl text-sm text-foreground hover:bg-secondary hover:border-primary transition-all">
+            <button key={q} onClick={() => send(q)} className="text-left px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground hover:bg-secondary hover:border-primary transition-all">
               {q}
             </button>
           ))}
@@ -1517,7 +1496,7 @@ function AIView({ profile }: { profile: UserProfile }) {
       )}
 
       {/* Chat */}
-      <div className="flex-1 bg-card rounded-3xl border border-border p-5 overflow-y-auto space-y-4 mb-4" style={{ maxHeight: "50vh" }}>
+      <div className="flex-1 bg-card rounded-2xl border border-border p-5 overflow-y-auto space-y-4 mb-4" style={{ maxHeight: "50vh" }}>
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-3`}>
             {msg.role === "ai" && (
@@ -1525,7 +1504,7 @@ function AIView({ profile }: { profile: UserProfile }) {
                 <MessageSquare size={14} className="text-primary" />
               </div>
             )}
-            <div className={`max-w-sm rounded-3xl px-4 py-3 text-sm leading-relaxed whitespace-pre-line ${msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted text-foreground rounded-tl-sm"}`}>
+            <div className={`max-w-sm rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-line ${msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted text-foreground rounded-tl-sm"}`}>
               {msg.content}
             </div>
           </div>
@@ -1535,7 +1514,7 @@ function AIView({ profile }: { profile: UserProfile }) {
             <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
               <MessageSquare size={14} className="text-primary" />
             </div>
-            <div className="bg-muted rounded-3xl rounded-tl-sm px-4 py-3 flex gap-1.5 items-center">
+            <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1.5 items-center">
               {[0, 1, 2].map(i => (
                 <span key={i} className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
               ))}
@@ -1549,9 +1528,9 @@ function AIView({ profile }: { profile: UserProfile }) {
         <input value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === "Enter" && send(input)}
           placeholder="Escribe tu pregunta de bienestar..."
-          className="flex-1 bg-card border border-border rounded-2xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition" />
+          className="flex-1 bg-card border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition" />
         <button onClick={() => send(input)} disabled={!input.trim() || loading}
-          className="w-12 h-12 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-40">
+          className="w-12 h-12 bg-primary text-primary-foreground rounded-xl flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-40">
           <Send size={16} />
         </button>
       </div>
@@ -1619,7 +1598,7 @@ function DevicesCard() {
   };
 
   return (
-    <div className="bg-card rounded-3xl border border-border p-6">
+    <div className="bg-card rounded-2xl border border-border p-6">
       <h3 className="font-semibold text-foreground mb-1">Dispositivos y apps de salud</h3>
       <p className="text-xs text-muted-foreground mb-4">Conecta un dispositivo para que tus datos de actividad, sueño y ritmo cardíaco se registren automáticamente.</p>
       {loading ? (
@@ -1630,7 +1609,7 @@ function DevicesCard() {
             const conn = connections[key];
             const isConnected = conn?.status === "connected";
             return (
-              <div key={key} className="flex items-center justify-between p-3 rounded-2xl bg-muted gap-3">
+              <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-muted gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">{label}</p>
                   <p className="text-xs text-muted-foreground">
@@ -1650,7 +1629,7 @@ function DevicesCard() {
                   </div>
                 ) : (
                   <button onClick={handleConnectFitbit} disabled={busy === key}
-                    className="shrink-0 text-xs font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center gap-1.5">
+                    className="shrink-0 text-xs font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center gap-1.5">
                     {busy === key && <Loader2 size={12} className="animate-spin" />} Conectar
                   </button>
                 )}
@@ -1660,7 +1639,7 @@ function DevicesCard() {
         </div>
       )}
       {error && (
-        <div className="mt-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-xs leading-relaxed">{error}</div>
+        <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-600 text-xs leading-relaxed">{error}</div>
       )}
     </div>
   );
@@ -1699,7 +1678,7 @@ function HealthView({ profile, onProfileChange }: { profile: UserProfile; onProf
         <p className="text-muted-foreground text-sm">Información personal de salud. Todos los campos son opcionales.</p>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-start gap-2">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2">
         <Lock size={13} className="text-blue-600 mt-0.5 shrink-0" />
         <p className="text-blue-700 text-xs leading-relaxed">
           Esta información se almacena de forma segura y solo tú puedes acceder a ella. No se usa sin tu consentimiento explícito.
@@ -1708,7 +1687,7 @@ function HealthView({ profile, onProfileChange }: { profile: UserProfile; onProf
 
       <DevicesCard />
 
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-4">Datos personales</h3>
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
           {[
@@ -1720,7 +1699,7 @@ function HealthView({ profile, onProfileChange }: { profile: UserProfile; onProf
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</label>
               <div className="relative">
                 <input value={(form as any)[key]} onChange={e => update(key, e.target.value)} placeholder={placeholder}
-                  className="w-full bg-input-background rounded-xl px-3 py-2.5 pr-10 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                  className="w-full bg-input-background rounded-lg px-3 py-2.5 pr-10 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{unit}</span>
               </div>
             </div>
@@ -1728,7 +1707,7 @@ function HealthView({ profile, onProfileChange }: { profile: UserProfile; onProf
         </div>
       </div>
 
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-1">Mediciones opcionales</h3>
         <p className="text-xs text-muted-foreground mb-4">Registra solo si tienes indicación de tu médico.</p>
         <div className="grid grid-cols-2 gap-4">
@@ -1739,29 +1718,29 @@ function HealthView({ profile, onProfileChange }: { profile: UserProfile; onProf
             <div key={key}>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</label>
               <input value={(form as any)[key]} onChange={e => update(key, e.target.value)} placeholder={placeholder}
-                className="w-full bg-input-background rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                className="w-full bg-input-background rounded-lg px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
             </div>
           ))}
         </div>
       </div>
 
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-1">Medicamentos o suplementos</h3>
         <p className="text-xs text-muted-foreground mb-3">Solo para referencia personal. No generamos prescripciones.</p>
         <textarea value={form.medications} onChange={e => update("medications", e.target.value)}
           placeholder="Ej: Vitamina D 1000 UI diaria, Omega 3..."
-          className="w-full bg-input-background rounded-2xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-20" />
+          className="w-full bg-input-background rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-20" />
       </div>
 
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-3">Notas de salud</h3>
         <textarea value={form.notes} onChange={e => update("notes", e.target.value)}
           placeholder="Antecedentes relevantes, alergias u otra información que quieras recordar..."
-          className="w-full bg-input-background rounded-2xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
+          className="w-full bg-input-background rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
       </div>
 
       <button onClick={handleSave} disabled={saving}
-        className={`w-full py-3.5 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"}`}>
+        className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"}`}>
         {saving ? <><Loader2 size={16} className="animate-spin" /> Guardando...</> : saved ? <><CheckCircle size={16} /> Perfil guardado</> : "Guardar perfil de salud"}
       </button>
     </div>
@@ -1913,7 +1892,7 @@ function ProfileView({ profile, onProfileChange, onLogout }: { profile: UserProf
       <h1 className="font-display text-2xl text-foreground">Mi Perfil</h1>
 
       {/* User card */}
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <div className="flex items-center gap-5">
           <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center text-2xl shrink-0">
             👤
@@ -1922,7 +1901,7 @@ function ProfileView({ profile, onProfileChange, onLogout }: { profile: UserProf
             {editingName ? (
               <input value={nameInput} onChange={e => setNameInput(e.target.value)} autoFocus
                 onKeyDown={e => e.key === "Enter" && handleSaveName()}
-                className="w-full bg-input-background rounded-xl px-3 py-2 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                className="w-full bg-input-background rounded-lg px-3 py-2 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
             ) : (
               <h2 className="font-semibold text-foreground">{displayName}</h2>
             )}
@@ -1932,22 +1911,22 @@ function ProfileView({ profile, onProfileChange, onLogout }: { profile: UserProf
           {editingName ? (
             <div className="flex gap-2 shrink-0">
               <button onClick={() => { setEditingName(false); setNameInput(profile.name); }} disabled={savingName}
-                className="border border-border text-sm text-foreground px-3 py-2 rounded-xl hover:bg-muted transition-colors disabled:opacity-60">
+                className="border border-border text-sm text-foreground px-3 py-2 rounded-lg hover:bg-muted transition-colors disabled:opacity-60">
                 Cancelar
               </button>
               <button onClick={handleSaveName} disabled={savingName}
-                className="bg-primary text-primary-foreground text-sm px-3 py-2 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center gap-1.5">
+                className="bg-primary text-primary-foreground text-sm px-3 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center gap-1.5">
                 {savingName && <Loader2 size={14} className="animate-spin" />} Guardar
               </button>
             </div>
           ) : (
-            <button onClick={() => setEditingName(true)} className="border border-border text-sm text-foreground px-4 py-2 rounded-xl hover:bg-muted transition-colors shrink-0">Editar</button>
+            <button onClick={() => setEditingName(true)} className="border border-border text-sm text-foreground px-4 py-2 rounded-lg hover:bg-muted transition-colors shrink-0">Editar</button>
           )}
         </div>
       </div>
 
       {/* Notifications */}
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-4">Recordatorios</h3>
         <div className="space-y-3">
           {[
@@ -1971,7 +1950,7 @@ function ProfileView({ profile, onProfileChange, onLogout }: { profile: UserProf
       </div>
 
       {/* Push notifications */}
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-1">Notificaciones push</h3>
         <p className="text-xs text-muted-foreground mb-4">
           {pushState === "granted" ? "Activadas en este dispositivo. Recibirás tus recordatorios como notificaciones push." : "Actívalas para recibir tus recordatorios como notificaciones del navegador."}
@@ -1985,20 +1964,20 @@ function ProfileView({ profile, onProfileChange, onLogout }: { profile: UserProf
         <div className="flex flex-col sm:flex-row gap-3">
           {pushState !== "granted" && (
             <button onClick={handleEnablePush} disabled={pushState === "loading"}
-              className="flex-1 bg-primary text-primary-foreground font-semibold py-2.5 rounded-xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+              className="flex-1 bg-primary text-primary-foreground font-semibold py-2.5 rounded-lg hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
               {pushState === "loading" && <Loader2 size={14} className="animate-spin" />} Activar notificaciones
             </button>
           )}
           {pushState === "granted" && (
             <button onClick={handleSendTest} disabled={testState === "sending"}
-              className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-xl hover:bg-muted transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+              className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-lg hover:bg-muted transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-60">
               {testState === "sending" && <Loader2 size={14} className="animate-spin" />}
               {testState === "sent" ? <><CheckCircle size={14} className="text-emerald-500" /> Enviada</> : "Enviar notificación de prueba"}
             </button>
           )}
         </div>
         {testState === "error" && (
-          <div className="mt-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2">
+          <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-start gap-2">
             <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
             <p className="text-red-600 text-xs leading-relaxed">{testError}</p>
           </div>
@@ -2006,12 +1985,12 @@ function ProfileView({ profile, onProfileChange, onLogout }: { profile: UserProf
       </div>
 
       {/* Privacy */}
-      <div className="bg-card rounded-3xl border border-border p-6">
+      <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-4">Privacidad y datos</h3>
         <div className="space-y-2">
           {privacyItems.map(({ key, label, icon: Icon, danger, onClick, loading }) => (
             <button key={key} onClick={onClick} disabled={loading}
-              className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors disabled:opacity-60 ${danger ? "hover:bg-red-50 text-red-600" : "hover:bg-muted text-foreground"}`}>
+              className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl transition-colors disabled:opacity-60 ${danger ? "hover:bg-red-50 text-red-600" : "hover:bg-muted text-foreground"}`}>
               {loading ? <Loader2 size={16} className="animate-spin text-muted-foreground" /> : <Icon size={16} className={danger ? "text-red-500" : "text-muted-foreground"} />}
               <span className="text-sm">{label}</span>
               <ChevronRight size={14} className="ml-auto text-muted-foreground" />
@@ -2020,7 +1999,7 @@ function ProfileView({ profile, onProfileChange, onLogout }: { profile: UserProf
         </div>
       </div>
 
-      <div className="bg-card rounded-3xl border border-border p-4">
+      <div className="bg-card rounded-2xl border border-border p-4">
         <p className="text-xs text-muted-foreground text-center leading-relaxed">
           BorquIA · v1.0 · <span className="text-primary cursor-pointer hover:underline">Política de Privacidad</span> · <span className="text-primary cursor-pointer hover:underline">Términos</span>
         </p>
@@ -2051,7 +2030,7 @@ function ProfileView({ profile, onProfileChange, onLogout }: { profile: UserProf
         />
       )}
 
-      <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 border border-border text-foreground py-3 rounded-2xl hover:bg-muted transition-colors text-sm font-medium">
+      <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 border border-border text-foreground py-3 rounded-xl hover:bg-muted transition-colors text-sm font-medium">
         <LogOut size={15} /> Cerrar sesión
       </button>
     </div>
@@ -2078,7 +2057,7 @@ function AppShell({ view, profile, onProfileChange, onNavigate, onLogout }: { vi
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-60 shrink-0 bg-card border-r border-border">
         <div className="p-5 border-b border-border flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <Heart size={15} className="text-primary-foreground" />
           </div>
           <span className="font-semibold text-foreground tracking-tight">BorquIA</span>
@@ -2086,14 +2065,14 @@ function AppShell({ view, profile, onProfileChange, onNavigate, onLogout }: { vi
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map(({ view: v, label, Icon }) => (
             <button key={v} onClick={() => onNavigate(v)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${view === v ? "bg-secondary text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${view === v ? "bg-secondary text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
               <Icon size={17} />
               {label}
             </button>
           ))}
         </nav>
         <div className="p-3 border-t border-border">
-          <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+          <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
             <LogOut size={17} /> Cerrar sesión
           </button>
         </div>
@@ -2106,7 +2085,7 @@ function AppShell({ view, profile, onProfileChange, onNavigate, onLogout }: { vi
           <aside className="relative z-10 w-64 bg-card h-full flex flex-col shadow-xl">
             <div className="p-5 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                   <Heart size={15} className="text-primary-foreground" />
                 </div>
                 <span className="font-semibold text-foreground">BorquIA</span>
@@ -2118,7 +2097,7 @@ function AppShell({ view, profile, onProfileChange, onNavigate, onLogout }: { vi
             <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
               {NAV_ITEMS.map(({ view: v, label, Icon }) => (
                 <button key={v} onClick={() => { onNavigate(v); setSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${view === v ? "bg-secondary text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${view === v ? "bg-secondary text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
                   <Icon size={17} /> {label}
                 </button>
               ))}
@@ -2224,8 +2203,8 @@ function AdminUsersTab() {
 
   return (
     <div className="space-y-4">
-      {error && <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm">{error}</div>}
-      <div className="bg-card rounded-3xl border border-border overflow-hidden">
+      {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">{error}</div>}
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="p-6 pb-4">
           <h2 className="font-semibold text-foreground">Usuarios ({users.length})</h2>
           <p className="text-xs text-muted-foreground mt-1">Solo datos de cuenta. No se muestra información de salud ni hábitos personales.</p>
@@ -2299,7 +2278,7 @@ function AdminMetricsTab() {
     return <div className="flex items-center justify-center py-24"><Loader2 size={24} className="text-primary animate-spin" /></div>;
   }
   if (error) {
-    return <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm">{error}</div>;
+    return <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">{error}</div>;
   }
 
   const cards = [
@@ -2314,12 +2293,10 @@ function AdminMetricsTab() {
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {cards.map(({ label, value, icon: Icon, color }) => (
-        <div key={label} className="bg-card rounded-3xl border border-border p-6">
+        <div key={label} className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${color}18` }}>
-              <Icon size={15} style={{ color }} />
-            </div>
+            <Icon size={16} style={{ color }} />
           </div>
           <span className="text-3xl font-bold text-foreground">{value}</span>
         </div>
@@ -2388,23 +2365,23 @@ function AdminItemsTab({ collection, heading, fields }: { collection: string; he
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold text-foreground">{heading} ({items.length})</h2>
-        <button onClick={openNew} className="flex items-center gap-2 border border-border text-foreground px-4 py-2 rounded-xl text-sm font-medium hover:bg-muted transition-colors">
+        <button onClick={openNew} className="flex items-center gap-2 border border-border text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors">
           <Plus size={15} /> Nuevo
         </button>
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm">{error}</div>}
+      {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">{error}</div>}
 
       {loading ? (
         <div className="flex items-center justify-center py-24"><Loader2 size={24} className="text-primary animate-spin" /></div>
       ) : items.length === 0 ? (
-        <div className="bg-card rounded-3xl border border-border p-8 text-center">
+        <div className="bg-card rounded-2xl border border-border p-8 text-center">
           <p className="text-muted-foreground text-sm">Aún no hay elementos. Crea el primero con "Nuevo".</p>
         </div>
       ) : (
         <div className="grid gap-3">
           {items.map(item => (
-            <div key={item.id} className="bg-card rounded-2xl border border-border p-4 flex items-start justify-between gap-4">
+            <div key={item.id} className="bg-card rounded-xl border border-border p-4 flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="font-medium text-foreground text-sm truncate">{String(item[fields[0].key] ?? "Sin título")}</p>
                 {fields[1] && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{String(item[fields[1].key] ?? "")}</p>}
@@ -2421,7 +2398,7 @@ function AdminItemsTab({ collection, heading, fields }: { collection: string; he
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="fixed inset-0 bg-black/40" onClick={() => setEditing(null)} />
-          <div className="relative z-10 bg-card rounded-3xl border border-border p-6 w-full max-w-md shadow-xl max-h-[85vh] overflow-y-auto">
+          <div className="relative z-10 bg-card rounded-2xl border border-border p-6 w-full max-w-md shadow-xl max-h-[85vh] overflow-y-auto">
             <h3 className="font-semibold text-foreground mb-4">{editing === "new" ? "Nuevo" : "Editar"}</h3>
             <div className="space-y-3">
               {fields.map(f => (
@@ -2436,10 +2413,10 @@ function AdminItemsTab({ collection, heading, fields }: { collection: string; he
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{f.label}</label>
                       {f.type === "textarea" ? (
                         <textarea value={form[f.key] ?? ""} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.value }))}
-                          className="w-full bg-input-background rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
+                          className="w-full bg-input-background rounded-lg px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
                       ) : (
                         <input value={form[f.key] ?? ""} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.value }))}
-                          className="w-full bg-input-background rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                          className="w-full bg-input-background rounded-lg px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
                       )}
                     </div>
                   )}
@@ -2447,10 +2424,10 @@ function AdminItemsTab({ collection, heading, fields }: { collection: string; he
               ))}
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setEditing(null)} disabled={saving} className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-xl hover:bg-muted transition-colors text-sm disabled:opacity-60">
+              <button onClick={() => setEditing(null)} disabled={saving} className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-lg hover:bg-muted transition-colors text-sm disabled:opacity-60">
                 Cancelar
               </button>
-              <button onClick={handleSave} disabled={saving} className="flex-1 bg-primary text-primary-foreground font-semibold py-2.5 rounded-xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+              <button onClick={handleSave} disabled={saving} className="flex-1 bg-primary text-primary-foreground font-semibold py-2.5 rounded-lg hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
                 {saving && <Loader2 size={14} className="animate-spin" />} Guardar
               </button>
             </div>
@@ -2486,11 +2463,11 @@ function AdminLogsTab() {
     return <div className="flex items-center justify-center py-24"><Loader2 size={24} className="text-primary animate-spin" /></div>;
   }
   if (error) {
-    return <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm">{error}</div>;
+    return <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">{error}</div>;
   }
 
   return (
-    <div className="bg-card rounded-3xl border border-border overflow-hidden">
+    <div className="bg-card rounded-2xl border border-border overflow-hidden">
       <div className="p-6 pb-4">
         <h2 className="font-semibold text-foreground">Registro de actividad ({logs.length})</h2>
         <p className="text-xs text-muted-foreground mt-1">Últimas 100 acciones administrativas.</p>
@@ -2555,7 +2532,7 @@ function AdminConfigTab() {
   }
 
   return (
-    <div className="bg-card rounded-3xl border border-border p-6 max-w-lg space-y-5">
+    <div className="bg-card rounded-2xl border border-border p-6 max-w-lg space-y-5">
       <div className="flex items-center justify-between py-2">
         <div>
           <p className="text-sm font-medium text-foreground">Modo mantenimiento</p>
@@ -2570,13 +2547,13 @@ function AdminConfigTab() {
         <label className="block text-sm font-medium text-foreground mb-1.5">Banner de anuncio</label>
         <textarea value={config.announcementBanner} onChange={e => setConfig(c => ({ ...c, announcementBanner: e.target.value }))}
           placeholder="Ej: Nueva función disponible: objetivos con progreso real."
-          className="w-full bg-input-background rounded-2xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
+          className="w-full bg-input-background rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
       </div>
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-xs">{error}</div>
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-600 text-xs">{error}</div>
       )}
       <button onClick={handleSave} disabled={saving}
-        className={`w-full py-3 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"}`}>
+        className={`w-full py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"}`}>
         {saving ? <><Loader2 size={16} className="animate-spin" /> Guardando...</> : saved ? <><CheckCircle size={16} /> Guardado</> : "Guardar configuración"}
       </button>
     </div>
@@ -2640,24 +2617,24 @@ function AdminApp() {
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="w-full max-w-sm bg-card rounded-3xl border border-border p-8">
+        <div className="w-full max-w-sm bg-card rounded-2xl border border-border p-8">
           <h1 className="font-display text-2xl text-foreground mb-1">Panel Administrativo</h1>
           <p className="text-muted-foreground text-sm mb-6">Inicia sesión con tu cuenta de administrador.</p>
           <div className="space-y-3">
             <input type="email" value={authForm.email} onChange={e => setAuthForm(f => ({ ...f, email: e.target.value }))}
-              placeholder="tu@correo.com" className="w-full bg-input-background rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+              placeholder="tu@correo.com" className="w-full bg-input-background rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
             <input type="password" value={authForm.password} onChange={e => setAuthForm(f => ({ ...f, password: e.target.value }))}
               onKeyDown={e => e.key === "Enter" && handleLogin()}
-              placeholder="••••••••" className="w-full bg-input-background rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+              placeholder="••••••••" className="w-full bg-input-background rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
           </div>
           {authError && (
-            <div className="mt-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2">
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-start gap-2">
               <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
               <p className="text-red-600 text-xs leading-relaxed">{authError}</p>
             </div>
           )}
           <button onClick={handleLogin} disabled={authLoading}
-            className="w-full mt-6 bg-primary text-primary-foreground font-semibold py-3.5 rounded-2xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+            className="w-full mt-6 bg-primary text-primary-foreground font-semibold py-3.5 rounded-xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
             {authLoading && <Loader2 size={16} className="animate-spin" />} Iniciar sesión
           </button>
         </div>
@@ -2668,11 +2645,11 @@ function AdminApp() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="w-full max-w-sm bg-card rounded-3xl border border-border p-8 text-center">
+        <div className="w-full max-w-sm bg-card rounded-2xl border border-border p-8 text-center">
           <AlertCircle size={24} className="text-red-500 mx-auto mb-3" />
           <p className="text-foreground font-medium text-sm mb-1">Sin acceso</p>
           <p className="text-muted-foreground text-sm mb-6">Tu cuenta no tiene permisos de administrador.</p>
-          <button onClick={() => signOut(auth)} className="w-full border border-border text-foreground font-medium py-3 rounded-2xl hover:bg-muted transition-colors text-sm">
+          <button onClick={() => signOut(auth)} className="w-full border border-border text-foreground font-medium py-3 rounded-xl hover:bg-muted transition-colors text-sm">
             Cerrar sesión
           </button>
         </div>
@@ -2684,7 +2661,7 @@ function AdminApp() {
     <div className="min-h-screen bg-background">
       <header className="bg-card border-b border-border px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <Shield size={15} className="text-primary-foreground" />
           </div>
           <span className="font-semibold text-foreground tracking-tight">BorquIA · Panel Administrativo</span>
