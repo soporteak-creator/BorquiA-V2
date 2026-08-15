@@ -20,6 +20,7 @@ import { auth, googleProvider } from "../lib/firebase";
 import { getUserProfile, saveUserProfile, deleteUserProfile, EMPTY_PROFILE, type UserProfile } from "../lib/profile";
 import { getDailyLog, saveDailyLog, getRecentDailyLogs, todayKey, dateKeyOffset, wellnessScore, EMPTY_DAILY_LOG, type DailyLog, type DailyLogEntry } from "../lib/dailyLog";
 import { getGoals, createGoal, updateGoalProgress, deleteGoal, type Goal } from "../lib/goals";
+import { askAssistant, type ChatTurn } from "../lib/ai";
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -60,19 +61,6 @@ const SUGGESTED_QUESTIONS = [
   "¿Cómo empiezo a hacer más actividad física?",
   "¿Cómo mejorar mi alimentación esta semana?",
 ];
-
-function getAIResponse(input: string): string {
-  const lower = input.toLowerCase();
-  if (lower.includes("sueño") || lower.includes("dormir") || lower.includes("descanso"))
-    return "Para mejorar tu sueño, intenta mantener un horario constante para dormir y despertar, incluso los fines de semana. Reduce la exposición a pantallas al menos 1 hora antes de acostarte y asegúrate de que tu habitación esté oscura y fresca.\n\nTus registros muestran que en promedio duermes 7.5h, lo cual está muy cerca de tu objetivo de 8h. Un ajuste pequeño en tu hora de dormir podría marcar la diferencia.\n\n⚠️ Esta información es de carácter general y no reemplaza la evaluación de un especialista del sueño.";
-  if (lower.includes("agua") || lower.includes("hidrat"))
-    return "Para mantenerte bien hidratado, te recomiendo comenzar el día con un vaso de agua al despertar y llevar contigo una botella reutilizable durante el día. Establecer recordatorios cada 2 horas también ayuda mucho.\n\nEsta semana tu promedio ha sido de 7 vasos, muy cercano a tu objetivo. ¡Vas muy bien!\n\n⚠️ Esta información es general. Si tienes condiciones de salud que afecten tu hidratación, consulta con tu médico.";
-  if (lower.includes("actividad") || lower.includes("ejercicio") || lower.includes("físic"))
-    return "Para aumentar tu actividad física de forma sostenible, te recomiendo comenzar con 20-30 minutos de caminata tres veces por semana. La constancia es mucho más importante que la intensidad al inicio.\n\nTus mejores días de esta semana han sido los miércoles y viernes. ¿Podrías agregar un tercer día?\n\n⚠️ Consulta con un profesional de salud antes de iniciar una rutina de ejercicios intensa, especialmente si tienes condiciones previas.";
-  if (lower.includes("aliment") || lower.includes("comer") || lower.includes("nutrición") || lower.includes("dieta"))
-    return "Para mejorar tu alimentación, te recomiendo planificar tus comidas con anticipación e incluir vegetales de distintos colores en cada plato. Evitar saltarte comidas y mantener horarios regulares también tiene un gran impacto en tu energía y bienestar general.\n\nPara un plan personalizado y adaptado a tus necesidades específicas, lo ideal es consultar con un nutricionista certificado.\n\n⚠️ Esta información es general y no reemplaza la orientación de un profesional de nutrición.";
-  return "Gracias por tu consulta. Basándome en tus hábitos registrados, te recomiendo enfocarte en pequeños cambios graduales y sostenibles. La consistencia es la clave del bienestar a largo plazo: pequeñas mejoras diarias generan grandes resultados en el tiempo.\n\nSi tienes dudas específicas sobre tu salud, consulta siempre con un profesional de la salud.\n\n⚠️ Esta herramienta entrega información general de bienestar y no reemplaza la evaluación de un profesional de la salud.";
-}
 
 // ── Reusable Components ────────────────────────────────────────
 
@@ -1439,27 +1427,60 @@ function StatsView() {
   );
 }
 
-function AIView() {
+function AIView({ profile }: { profile: UserProfile }) {
+  const name = profile.name.trim();
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "ai", content: "Hola María 👋 Soy tu asistente de bienestar. Puedo orientarte con información general sobre hábitos saludables basándome en tus registros. ¿En qué te puedo ayudar hoy?" }
+    { role: "ai", content: `Hola${name ? ` ${name}` : ""} 👋 Soy tu asistente de bienestar. Puedo orientarte con información general sobre hábitos saludables basándome en tus registros. ¿En qué te puedo ayudar hoy?` }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [todayLogSummary, setTodayLogSummary] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  const send = (text: string) => {
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    getDailyLog(uid, todayKey()).then(log => {
+      if (log) setTodayLogSummary(`Sueño ${log.sleep}h, agua ${log.water}/8 vasos, actividad ${log.activity} min, ánimo ${MOOD_EMOJI[log.mood] ?? "neutro"}`);
+    });
+  }, []);
+
+  const send = async (text: string) => {
     if (!text.trim() || loading) return;
     const userMsg = text.trim();
+    // Skip the hardcoded greeting (index 0): it's UI-only, not a real model turn.
+    const history: ChatTurn[] = messages.slice(1).map(m => ({ role: m.role === "ai" ? "model" as const : "user" as const, text: m.content }));
     setMessages(m => [...m, { role: "user", content: userMsg }]);
     setInput("");
     setLoading(true);
-    setTimeout(() => {
-      setMessages(m => [...m, { role: "ai", content: getAIResponse(userMsg) }]);
+    try {
+      const reply = await askAssistant(history, userMsg, profile, todayLogSummary);
+      setMessages(m => [...m, { role: "ai", content: reply }]);
+    } catch (err) {
+      console.error("[ai] error", err);
+      setMessages(m => [...m, { role: "ai", content: "No pude responder en este momento. Intenta de nuevo en unos segundos.\n\n⚠️ Si esto persiste, revisa tu conexión o inténtalo más tarde." }]);
+    } finally {
       setLoading(false);
-    }, 900);
+    }
   };
+
+  if (profile.aiConsentRevoked) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="font-display text-2xl text-foreground">Asistente IA</h1>
+          <p className="text-muted-foreground text-sm">Orientación general de bienestar, no diagnósticos médicos.</p>
+        </div>
+        <div className="bg-card rounded-3xl border border-border p-8 text-center">
+          <Info size={24} className="text-muted-foreground mx-auto mb-3" />
+          <p className="text-foreground font-medium text-sm mb-1">Revocaste el consentimiento de IA</p>
+          <p className="text-muted-foreground text-sm">Puedes reactivarlo desde Mi Perfil → Privacidad y datos cuando quieras volver a usar el asistente.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full" style={{ minHeight: "calc(100vh - 120px)" }}>
@@ -1936,7 +1957,7 @@ function AppShell({ view, profile, onProfileChange, onNavigate, onLogout }: { vi
           {view === "goals" && <GoalsView />}
           {view === "day" && <DayView />}
           {view === "stats" && <StatsView />}
-          {view === "ai" && <AIView />}
+          {view === "ai" && <AIView profile={profile} />}
           {view === "profile" && <ProfileView profile={profile} onProfileChange={onProfileChange} onLogout={onLogout} />}
         </main>
 
