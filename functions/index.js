@@ -3,7 +3,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 
 initializeApp();
@@ -43,6 +43,32 @@ function requireAdmin(request) {
   }
 }
 
+function serializeDoc(data) {
+  const out = {};
+  for (const [k, v] of Object.entries(data)) {
+    out[k] = v && typeof v.toDate === "function" ? v.toDate().toISOString() : v;
+  }
+  return out;
+}
+
+async function logAudit(request, action, target, details) {
+  await getFirestore().collection("auditLogs").add({
+    adminEmail: request.auth.token.email ?? request.auth.uid,
+    action,
+    target,
+    details: details ?? null,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+}
+
+const MANAGED_COLLECTIONS = ["wellnessContent", "recommendations", "categories"];
+
+function requireManagedCollection(name) {
+  if (!MANAGED_COLLECTIONS.includes(name)) {
+    throw new HttpsError("invalid-argument", "Colección no permitida.");
+  }
+}
+
 export const adminGetUsers = onCall({ region: "southamerica-west1" }, async (request) => {
   requireAdmin(request);
 
@@ -77,11 +103,118 @@ export const adminGetStats = onCall({ region: "southamerica-west1" }, async (req
     db.collectionGroup("goals").count().get(),
   ]);
 
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  let activeLast7Days = 0;
+  let newUsersLast7Days = 0;
+  let pageToken;
+  do {
+    const result = await getAuth().listUsers(1000, pageToken);
+    for (const u of result.users) {
+      if (new Date(u.metadata.lastSignInTime).getTime() >= weekAgo) activeLast7Days++;
+      if (new Date(u.metadata.creationTime).getTime() >= weekAgo) newUsersLast7Days++;
+    }
+    pageToken = result.pageToken;
+  } while (pageToken);
+
+  const totalProfiles = profilesCount.data().count;
+  const totalGoals = goalsCount.data().count;
+
   return {
-    totalProfiles: profilesCount.data().count,
+    totalProfiles,
     totalDailyLogs: logsCount.data().count,
-    totalGoals: goalsCount.data().count,
+    totalGoals,
+    activeLast7Days,
+    newUsersLast7Days,
+    avgGoalsPerUser: totalProfiles > 0 ? Math.round((totalGoals / totalProfiles) * 10) / 10 : 0,
   };
+});
+
+export const adminSetUserDisabled = onCall({ region: "southamerica-west1" }, async (request) => {
+  requireAdmin(request);
+  const { uid, disabled } = request.data ?? {};
+  if (typeof uid !== "string" || typeof disabled !== "boolean") {
+    throw new HttpsError("invalid-argument", "Datos inválidos.");
+  }
+  if (uid === request.auth.uid) {
+    throw new HttpsError("failed-precondition", "No puedes deshabilitar tu propia cuenta.");
+  }
+  await getAuth().updateUser(uid, { disabled });
+  await logAudit(request, disabled ? "disable_user" : "enable_user", `users/${uid}`);
+  return { ok: true };
+});
+
+export const adminDeleteUser = onCall({ region: "southamerica-west1" }, async (request) => {
+  requireAdmin(request);
+  const { uid } = request.data ?? {};
+  if (typeof uid !== "string") {
+    throw new HttpsError("invalid-argument", "uid inválido.");
+  }
+  if (uid === request.auth.uid) {
+    throw new HttpsError("failed-precondition", "No puedes eliminar tu propia cuenta desde aquí.");
+  }
+  await getAuth().deleteUser(uid);
+  await getFirestore().recursiveDelete(getFirestore().collection("users").doc(uid));
+  await logAudit(request, "delete_user", `users/${uid}`);
+  return { ok: true };
+});
+
+export const adminListDocs = onCall({ region: "southamerica-west1" }, async (request) => {
+  requireAdmin(request);
+  const { collection } = request.data ?? {};
+  requireManagedCollection(collection);
+  const snap = await getFirestore().collection(collection).orderBy("createdAt", "desc").get();
+  return { docs: snap.docs.map(d => ({ id: d.id, ...serializeDoc(d.data()) })) };
+});
+
+export const adminSaveDoc = onCall({ region: "southamerica-west1" }, async (request) => {
+  requireAdmin(request);
+  const { collection, id, data } = request.data ?? {};
+  requireManagedCollection(collection);
+  if (!data || typeof data !== "object") {
+    throw new HttpsError("invalid-argument", "Datos inválidos.");
+  }
+  const db = getFirestore();
+  const ref = id ? db.collection(collection).doc(id) : db.collection(collection).doc();
+  const now = FieldValue.serverTimestamp();
+  await ref.set({ ...data, updatedAt: now, ...(id ? {} : { createdAt: now }) }, { merge: true });
+  await logAudit(request, id ? "update" : "create", `${collection}/${ref.id}`, data);
+  return { id: ref.id };
+});
+
+export const adminDeleteDoc = onCall({ region: "southamerica-west1" }, async (request) => {
+  requireAdmin(request);
+  const { collection, id } = request.data ?? {};
+  requireManagedCollection(collection);
+  if (typeof id !== "string") {
+    throw new HttpsError("invalid-argument", "id inválido.");
+  }
+  await getFirestore().collection(collection).doc(id).delete();
+  await logAudit(request, "delete", `${collection}/${id}`);
+  return { ok: true };
+});
+
+export const adminGetConfig = onCall({ region: "southamerica-west1" }, async (request) => {
+  requireAdmin(request);
+  const snap = await getFirestore().collection("config").doc("app").get();
+  return snap.exists ? serializeDoc(snap.data()) : { maintenanceMode: false, announcementBanner: "" };
+});
+
+export const adminSaveConfig = onCall({ region: "southamerica-west1" }, async (request) => {
+  requireAdmin(request);
+  const { maintenanceMode, announcementBanner } = request.data ?? {};
+  await getFirestore().collection("config").doc("app").set({
+    maintenanceMode: !!maintenanceMode,
+    announcementBanner: typeof announcementBanner === "string" ? announcementBanner.slice(0, 500) : "",
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  await logAudit(request, "update", "config/app", { maintenanceMode, announcementBanner });
+  return { ok: true };
+});
+
+export const adminGetAuditLogs = onCall({ region: "southamerica-west1" }, async (request) => {
+  requireAdmin(request);
+  const snap = await getFirestore().collection("auditLogs").orderBy("createdAt", "desc").limit(100).get();
+  return { logs: snap.docs.map(d => ({ id: d.id, ...serializeDoc(d.data()) })) };
 });
 
 const SYSTEM_INSTRUCTION = `Eres el asistente de bienestar de BorquIA, una plataforma de salud y bienestar personal.

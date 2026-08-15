@@ -5,7 +5,8 @@ import {
   Plus, Send, Bell, Menu, X, TrendingUp, TrendingDown, Check,
   ChevronDown, ChevronRight, ArrowRight, Shield, Lock,
   Clock, Star, Zap, Info, CheckCircle, AlertCircle, LogOut,
-  Calendar, ChevronUp, Eye, EyeOff, Loader2
+  Calendar, ChevronUp, Eye, EyeOff, Loader2,
+  Pencil, FileText, Tag, Settings, ScrollText, Users, UserCheck, UserX
 } from "lucide-react";
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
@@ -21,7 +22,12 @@ import { getUserProfile, saveUserProfile, deleteUserProfile, EMPTY_PROFILE, type
 import { getDailyLog, saveDailyLog, getRecentDailyLogs, todayKey, dateKeyOffset, wellnessScore, EMPTY_DAILY_LOG, type DailyLog, type DailyLogEntry } from "../lib/dailyLog";
 import { getGoals, createGoal, updateGoalProgress, deleteGoal, type Goal } from "../lib/goals";
 import { askAssistant, type ChatTurn } from "../lib/ai";
-import { fetchAdminStats, fetchAdminUsers, type AdminStats, type AdminUser } from "../lib/admin";
+import {
+  fetchAdminStats, fetchAdminUsers, setUserDisabled, deleteAdminUser,
+  fetchAdminCollection, saveAdminDoc, deleteAdminDoc,
+  fetchAdminConfig, saveAdminConfig, fetchAuditLogs,
+  type AdminStats, type AdminUser, type AdminDoc, type AuditLogEntry, type AdminConfig,
+} from "../lib/admin";
 import { enablePushNotifications, sendTestNotification } from "../lib/notifications";
 
 function authErrorMessage(code: string): string {
@@ -2061,13 +2067,428 @@ function AppShell({ view, profile, onProfileChange, onNavigate, onLogout }: { vi
 // Never reads individual users' health/goals/daily-log content — only
 // aggregate counts and account metadata, enforced server-side in Cloud Functions.
 
+function AdminUsersTab() {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busyUid, setBusyUid] = useState<string | null>(null);
+  const [deleteUid, setDeleteUid] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    setError("");
+    fetchAdminUsers().then(setUsers).catch(() => setError("No se pudo cargar la lista de usuarios.")).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const handleToggleDisabled = async (u: AdminUser) => {
+    setBusyUid(u.uid);
+    try {
+      await setUserDisabled(u.uid, !u.disabled);
+      setUsers(us => us.map(x => x.uid === u.uid ? { ...x, disabled: !x.disabled } : x));
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo actualizar el usuario.");
+    } finally {
+      setBusyUid(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteUid) return;
+    setDeleting(true);
+    try {
+      await deleteAdminUser(deleteUid);
+      setUsers(us => us.filter(u => u.uid !== deleteUid));
+      setDeleteUid(null);
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo eliminar el usuario.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-24"><Loader2 size={24} className="text-primary animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {error && <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm">{error}</div>}
+      <div className="bg-card rounded-3xl border border-border overflow-hidden">
+        <div className="p-6 pb-4">
+          <h2 className="font-semibold text-foreground">Usuarios ({users.length})</h2>
+          <p className="text-xs text-muted-foreground mt-1">Solo datos de cuenta. No se muestra información de salud ni hábitos personales.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-t border-border text-left text-xs text-muted-foreground uppercase tracking-wider">
+                <th className="px-6 py-3 font-medium">Nombre</th>
+                <th className="px-6 py-3 font-medium">Correo</th>
+                <th className="px-6 py-3 font-medium">Registrado</th>
+                <th className="px-6 py-3 font-medium">Último acceso</th>
+                <th className="px-6 py-3 font-medium">Estado</th>
+                <th className="px-6 py-3 font-medium">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.uid} className="border-t border-border">
+                  <td className="px-6 py-3 text-foreground">{u.displayName || "—"}</td>
+                  <td className="px-6 py-3 text-muted-foreground">{u.email || "—"}</td>
+                  <td className="px-6 py-3 text-muted-foreground">{new Date(u.createdAt).toLocaleDateString("es-CL")}</td>
+                  <td className="px-6 py-3 text-muted-foreground">{new Date(u.lastSignIn).toLocaleDateString("es-CL")}</td>
+                  <td className="px-6 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${u.disabled ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
+                      {u.disabled ? "Deshabilitado" : "Activo"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3">
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => handleToggleDisabled(u)} disabled={busyUid === u.uid}
+                        className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40" title={u.disabled ? "Habilitar" : "Deshabilitar"}>
+                        {busyUid === u.uid ? <Loader2 size={15} className="animate-spin" /> : u.disabled ? <UserCheck size={15} /> : <UserX size={15} />}
+                      </button>
+                      <button onClick={() => setDeleteUid(u.uid)} className="text-muted-foreground hover:text-red-500 transition-colors" title="Eliminar">
+                        <X size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {deleteUid && (
+        <ConfirmDialog
+          title="Eliminar usuario"
+          description="Se eliminará la cuenta y todos sus datos (perfil, objetivos, registros diarios). Esta acción no se puede deshacer."
+          confirmLabel="Eliminar"
+          danger
+          loading={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteUid(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function AdminMetricsTab() {
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchAdminStats().then(setStats).catch(() => setError("No se pudo cargar la información.")).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-24"><Loader2 size={24} className="text-primary animate-spin" /></div>;
+  }
+  if (error) {
+    return <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm">{error}</div>;
+  }
+
+  const cards = [
+    { label: "Usuarios registrados", value: stats?.totalProfiles ?? 0, icon: Users, color: "#6366f1" },
+    { label: "Activos últimos 7 días", value: stats?.activeLast7Days ?? 0, icon: UserCheck, color: "#147A60" },
+    { label: "Nuevos últimos 7 días", value: stats?.newUsersLast7Days ?? 0, icon: User, color: "#F59E0B" },
+    { label: "Registros diarios totales", value: stats?.totalDailyLogs ?? 0, icon: Sun, color: "#0ea5e9" },
+    { label: "Objetivos creados", value: stats?.totalGoals ?? 0, icon: Target, color: "#ec4899" },
+    { label: "Objetivos promedio / usuario", value: stats?.avgGoalsPerUser ?? 0, icon: BarChart2, color: "#8b5cf6" },
+  ];
+
+  return (
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {cards.map(({ label, value, icon: Icon, color }) => (
+        <div key={label} className="bg-card rounded-3xl border border-border p-6">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${color}18` }}>
+              <Icon size={15} style={{ color }} />
+            </div>
+          </div>
+          <span className="text-3xl font-bold text-foreground">{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface AdminFieldDef { key: string; label: string; type: "text" | "textarea" | "checkbox"; }
+
+function AdminItemsTab({ collection, heading, fields }: { collection: string; heading: string; fields: AdminFieldDef[] }) {
+  const [items, setItems] = useState<AdminDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [editing, setEditing] = useState<AdminDoc | "new" | null>(null);
+  const [form, setForm] = useState<Record<string, any>>({});
+  const [saving, setSaving] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    setError("");
+    fetchAdminCollection(collection).then(setItems).catch(() => setError("No se pudo cargar.")).finally(() => setLoading(false));
+  };
+  useEffect(load, [collection]);
+
+  const openNew = () => {
+    setForm(Object.fromEntries(fields.map(f => [f.key, f.type === "checkbox" ? false : ""])));
+    setEditing("new");
+  };
+  const openEdit = (item: AdminDoc) => {
+    setForm(Object.fromEntries(fields.map(f => [f.key, item[f.key] ?? (f.type === "checkbox" ? false : "")])));
+    setEditing(item);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const id = editing !== "new" && editing ? editing.id : null;
+      await saveAdminDoc(collection, id, form);
+      load();
+      setEditing(null);
+    } catch {
+      setError("No se pudo guardar.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      await deleteAdminDoc(collection, deleteId);
+      setItems(its => its.filter(i => i.id !== deleteId));
+      setDeleteId(null);
+    } catch {
+      setError("No se pudo eliminar.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-foreground">{heading} ({items.length})</h2>
+        <button onClick={openNew} className="flex items-center gap-2 border border-border text-foreground px-4 py-2 rounded-xl text-sm font-medium hover:bg-muted transition-colors">
+          <Plus size={15} /> Nuevo
+        </button>
+      </div>
+
+      {error && <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm">{error}</div>}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-24"><Loader2 size={24} className="text-primary animate-spin" /></div>
+      ) : items.length === 0 ? (
+        <div className="bg-card rounded-3xl border border-border p-8 text-center">
+          <p className="text-muted-foreground text-sm">Aún no hay elementos. Crea el primero con "Nuevo".</p>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {items.map(item => (
+            <div key={item.id} className="bg-card rounded-2xl border border-border p-4 flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="font-medium text-foreground text-sm truncate">{String(item[fields[0].key] ?? "Sin título")}</p>
+                {fields[1] && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{String(item[fields[1].key] ?? "")}</p>}
+              </div>
+              <div className="flex gap-3 shrink-0">
+                <button onClick={() => openEdit(item)} className="text-muted-foreground hover:text-foreground transition-colors"><Pencil size={15} /></button>
+                <button onClick={() => setDeleteId(item.id)} className="text-muted-foreground hover:text-red-500 transition-colors"><X size={15} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setEditing(null)} />
+          <div className="relative z-10 bg-card rounded-3xl border border-border p-6 w-full max-w-md shadow-xl max-h-[85vh] overflow-y-auto">
+            <h3 className="font-semibold text-foreground mb-4">{editing === "new" ? "Nuevo" : "Editar"}</h3>
+            <div className="space-y-3">
+              {fields.map(f => (
+                <div key={f.key}>
+                  {f.type === "checkbox" ? (
+                    <label className="flex items-center gap-2 text-sm text-foreground">
+                      <input type="checkbox" checked={!!form[f.key]} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.checked }))} />
+                      {f.label}
+                    </label>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">{f.label}</label>
+                      {f.type === "textarea" ? (
+                        <textarea value={form[f.key] ?? ""} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.value }))}
+                          className="w-full bg-input-background rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
+                      ) : (
+                        <input value={form[f.key] ?? ""} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.value }))}
+                          className="w-full bg-input-background rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditing(null)} disabled={saving} className="flex-1 border border-border text-foreground font-medium py-2.5 rounded-xl hover:bg-muted transition-colors text-sm disabled:opacity-60">
+                Cancelar
+              </button>
+              <button onClick={handleSave} disabled={saving} className="flex-1 bg-primary text-primary-foreground font-semibold py-2.5 rounded-xl hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+                {saving && <Loader2 size={14} className="animate-spin" />} Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteId && (
+        <ConfirmDialog
+          title={`Eliminar de ${heading.toLowerCase()}`}
+          description="Esta acción no se puede deshacer."
+          confirmLabel="Eliminar"
+          danger
+          loading={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function AdminLogsTab() {
+  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchAuditLogs().then(setLogs).catch(() => setError("No se pudo cargar el registro de actividad.")).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-24"><Loader2 size={24} className="text-primary animate-spin" /></div>;
+  }
+  if (error) {
+    return <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm">{error}</div>;
+  }
+
+  return (
+    <div className="bg-card rounded-3xl border border-border overflow-hidden">
+      <div className="p-6 pb-4">
+        <h2 className="font-semibold text-foreground">Registro de actividad ({logs.length})</h2>
+        <p className="text-xs text-muted-foreground mt-1">Últimas 100 acciones administrativas.</p>
+      </div>
+      {logs.length === 0 ? (
+        <p className="text-muted-foreground text-sm px-6 pb-6">Aún no hay actividad registrada.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-t border-border text-left text-xs text-muted-foreground uppercase tracking-wider">
+                <th className="px-6 py-3 font-medium">Fecha</th>
+                <th className="px-6 py-3 font-medium">Admin</th>
+                <th className="px-6 py-3 font-medium">Acción</th>
+                <th className="px-6 py-3 font-medium">Objetivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map(l => (
+                <tr key={l.id} className="border-t border-border">
+                  <td className="px-6 py-3 text-muted-foreground whitespace-nowrap">{new Date(l.createdAt).toLocaleString("es-CL")}</td>
+                  <td className="px-6 py-3 text-foreground">{l.adminEmail}</td>
+                  <td className="px-6 py-3 text-muted-foreground">{l.action}</td>
+                  <td className="px-6 py-3 text-muted-foreground">{l.target}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminConfigTab() {
+  const [config, setConfig] = useState<AdminConfig>({ maintenanceMode: false, announcementBanner: "" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchAdminConfig().then(setConfig).catch(() => setError("No se pudo cargar la configuración.")).finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      await saveAdminConfig(config);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setError("No se pudo guardar la configuración.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-24"><Loader2 size={24} className="text-primary animate-spin" /></div>;
+  }
+
+  return (
+    <div className="bg-card rounded-3xl border border-border p-6 max-w-lg space-y-5">
+      <div className="flex items-center justify-between py-2">
+        <div>
+          <p className="text-sm font-medium text-foreground">Modo mantenimiento</p>
+          <p className="text-xs text-muted-foreground">Muestra un aviso a los usuarios de que la app está en mantenimiento.</p>
+        </div>
+        <button onClick={() => setConfig(c => ({ ...c, maintenanceMode: !c.maintenanceMode }))}
+          className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${config.maintenanceMode ? "bg-primary" : "bg-switch-background"}`}>
+          <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all" style={{ left: config.maintenanceMode ? "22px" : "2px" }} />
+        </button>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">Banner de anuncio</label>
+        <textarea value={config.announcementBanner} onChange={e => setConfig(c => ({ ...c, announcementBanner: e.target.value }))}
+          placeholder="Ej: Nueva función disponible: objetivos con progreso real."
+          className="w-full bg-input-background rounded-2xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition resize-none h-24" />
+      </div>
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-xs">{error}</div>
+      )}
+      <button onClick={handleSave} disabled={saving}
+        className={`w-full py-3 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:opacity-90"}`}>
+        {saving ? <><Loader2 size={16} className="animate-spin" /> Guardando...</> : saved ? <><CheckCircle size={16} /> Guardado</> : "Guardar configuración"}
+      </button>
+    </div>
+  );
+}
+
+const ADMIN_TABS = [
+  { key: "usuarios", label: "Usuarios", icon: Users },
+  { key: "metricas", label: "Métricas", icon: BarChart2 },
+  { key: "contenido", label: "Contenido", icon: FileText },
+  { key: "recomendaciones", label: "Recomendaciones", icon: MessageSquare },
+  { key: "categorias", label: "Categorías", icon: Tag },
+  { key: "logs", label: "Logs", icon: ScrollText },
+  { key: "configuracion", label: "Configuración", icon: Settings },
+] as const;
+
+type AdminTabKey = typeof ADMIN_TABS[number]["key"];
+
 function AdminApp() {
   const [user, setUser] = useState<FirebaseUser | null | undefined>(undefined);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loadingData, setLoadingData] = useState(false);
-  const [dataError, setDataError] = useState("");
+  const [tab, setTab] = useState<AdminTabKey>("usuarios");
 
   const [authForm, setAuthForm] = useState({ email: "", password: "" });
   const [authLoading, setAuthLoading] = useState(false);
@@ -2085,16 +2506,6 @@ function AdminApp() {
     });
     return unsubscribe;
   }, []);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    setLoadingData(true);
-    setDataError("");
-    Promise.all([fetchAdminStats(), fetchAdminUsers()])
-      .then(([s, u]) => { setStats(s); setUsers(u); })
-      .catch(() => setDataError("No se pudo cargar la información administrativa."))
-      .finally(() => setLoadingData(false));
-  }, [isAdmin]);
 
   const handleLogin = async () => {
     setAuthLoading(true);
@@ -2173,69 +2584,43 @@ function AdminApp() {
         </button>
       </header>
 
-      <main className="max-w-5xl mx-auto p-6 space-y-6">
-        {loadingData ? (
-          <div className="flex items-center justify-center py-24">
-            <Loader2 size={24} className="text-primary animate-spin" />
-          </div>
-        ) : dataError ? (
-          <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm">{dataError}</div>
-        ) : (
-          <>
-            <div className="grid sm:grid-cols-3 gap-4">
-              {[
-                { label: "Usuarios registrados", value: stats?.totalProfiles ?? 0, icon: User, color: "#6366f1" },
-                { label: "Registros diarios totales", value: stats?.totalDailyLogs ?? 0, icon: Sun, color: "#147A60" },
-                { label: "Objetivos creados", value: stats?.totalGoals ?? 0, icon: Target, color: "#0ea5e9" },
-              ].map(({ label, value, icon: Icon, color }) => (
-                <div key={label} className="bg-card rounded-3xl border border-border p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${color}18` }}>
-                      <Icon size={15} style={{ color }} />
-                    </div>
-                  </div>
-                  <span className="text-3xl font-bold text-foreground">{value}</span>
-                </div>
-              ))}
-            </div>
+      <nav className="bg-card border-b border-border px-6 overflow-x-auto">
+        <div className="flex gap-1 max-w-5xl mx-auto">
+          {ADMIN_TABS.map(({ key, label, icon: Icon }) => (
+            <button key={key} onClick={() => setTab(key)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${tab === key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              <Icon size={15} /> {label}
+            </button>
+          ))}
+        </div>
+      </nav>
 
-            <div className="bg-card rounded-3xl border border-border overflow-hidden">
-              <div className="p-6 pb-4">
-                <h2 className="font-semibold text-foreground">Usuarios ({users.length})</h2>
-                <p className="text-xs text-muted-foreground mt-1">Solo datos de cuenta. No se muestra información de salud ni hábitos personales.</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-t border-border text-left text-xs text-muted-foreground uppercase tracking-wider">
-                      <th className="px-6 py-3 font-medium">Nombre</th>
-                      <th className="px-6 py-3 font-medium">Correo</th>
-                      <th className="px-6 py-3 font-medium">Registrado</th>
-                      <th className="px-6 py-3 font-medium">Último acceso</th>
-                      <th className="px-6 py-3 font-medium">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map(u => (
-                      <tr key={u.uid} className="border-t border-border">
-                        <td className="px-6 py-3 text-foreground">{u.displayName || "—"}</td>
-                        <td className="px-6 py-3 text-muted-foreground">{u.email || "—"}</td>
-                        <td className="px-6 py-3 text-muted-foreground">{new Date(u.createdAt).toLocaleDateString("es-CL")}</td>
-                        <td className="px-6 py-3 text-muted-foreground">{new Date(u.lastSignIn).toLocaleDateString("es-CL")}</td>
-                        <td className="px-6 py-3">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${u.disabled ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
-                            {u.disabled ? "Deshabilitado" : "Activo"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
+      <main className="max-w-5xl mx-auto p-6">
+        {tab === "usuarios" && <AdminUsersTab />}
+        {tab === "metricas" && <AdminMetricsTab />}
+        {tab === "contenido" && (
+          <AdminItemsTab collection="wellnessContent" heading="Contenido de bienestar" fields={[
+            { key: "title", label: "Título", type: "text" },
+            { key: "body", label: "Cuerpo", type: "textarea" },
+            { key: "category", label: "Categoría", type: "text" },
+            { key: "published", label: "Publicado", type: "checkbox" },
+          ]} />
         )}
+        {tab === "recomendaciones" && (
+          <AdminItemsTab collection="recommendations" heading="Recomendaciones" fields={[
+            { key: "title", label: "Título", type: "text" },
+            { key: "body", label: "Texto", type: "textarea" },
+            { key: "category", label: "Categoría", type: "text" },
+          ]} />
+        )}
+        {tab === "categorias" && (
+          <AdminItemsTab collection="categories" heading="Categorías" fields={[
+            { key: "name", label: "Nombre", type: "text" },
+            { key: "description", label: "Descripción", type: "textarea" },
+          ]} />
+        )}
+        {tab === "logs" && <AdminLogsTab />}
+        {tab === "configuracion" && <AdminConfigTab />}
       </main>
     </div>
   );
