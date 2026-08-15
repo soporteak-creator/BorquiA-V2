@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
@@ -326,4 +326,212 @@ export const sendReminders = onSchedule({ schedule: "0 * * * *", timeZone: "Amer
 
     await sendToUser(uid, { title: reminder.title, body: reminder.body }).catch(err => console.error("sendReminders failed for", uid, err));
   }));
+});
+
+// ── Device integrations ─────────────────────────────────────────
+//
+// Data model:
+//   users/{uid}/healthMetrics/{date}     normalized daily metrics, client-readable, Functions-only write
+//   users/{uid}/deviceConnections/{prov} connection status, client-readable, Functions-only write
+//   deviceTokens/{uid}_{provider}        OAuth tokens, server-only (no client Firestore rule at all)
+//
+// Apple Health and Google Health Connect have no web API — they only sync
+// through a native iOS/Android app. ingestHealthMetrics below is the generic
+// landing point a future native app would call (authenticated as the
+// Firebase user) to push data it read from HealthKit / Health Connect.
+//
+// Fitbit has a documented OAuth2 web API and is fully wired below. It won't
+// work until FITBIT_CLIENT_ID/FITBIT_CLIENT_SECRET are set with real
+// credentials from https://dev.fitbit.com (register an app with redirect
+// URI = FITBIT_REDIRECT_URI below) — until then connectFitbit fails with a
+// clear "not configured" error instead of doing something broken.
+//
+// Garmin and Samsung Health both require vendor business approval before
+// you even get API access, so there's nothing safe to scaffold yet without
+// real docs to build against — they're left as "not available" in the UI.
+
+const SUPPORTED_PROVIDERS = ["apple_health", "google_health_connect", "fitbit", "garmin", "samsung_health"];
+const METRIC_FIELDS = ["steps", "heartRateAvg", "heartRateResting", "sleepMinutes", "caloriesBurned", "activeMinutes"];
+
+export const ingestHealthMetrics = onCall({ region: "southamerica-west1" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  }
+  const { date, metrics, source } = request.data ?? {};
+  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new HttpsError("invalid-argument", "Fecha inválida (usa YYYY-MM-DD).");
+  }
+  if (!metrics || typeof metrics !== "object") {
+    throw new HttpsError("invalid-argument", "Faltan métricas.");
+  }
+  const clean = {};
+  for (const key of METRIC_FIELDS) {
+    if (typeof metrics[key] === "number" && Number.isFinite(metrics[key])) clean[key] = metrics[key];
+  }
+  if (Object.keys(clean).length === 0) {
+    throw new HttpsError("invalid-argument", "Ninguna métrica reconocida o válida.");
+  }
+
+  await getFirestore().collection("users").doc(request.auth.uid).collection("healthMetrics").doc(date).set({
+    ...clean,
+    source: typeof source === "string" ? source.slice(0, 50) : "unknown",
+    syncedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return { ok: true };
+});
+
+export const disconnectDevice = onCall({ region: "southamerica-west1" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  }
+  const { provider } = request.data ?? {};
+  if (!SUPPORTED_PROVIDERS.includes(provider)) {
+    throw new HttpsError("invalid-argument", "Proveedor no soportado.");
+  }
+  const uid = request.auth.uid;
+  const db = getFirestore();
+  await db.collection("deviceTokens").doc(`${uid}_${provider}`).delete();
+  await db.collection("users").doc(uid).collection("deviceConnections").doc(provider).set({
+    provider,
+    status: "disconnected",
+    disconnectedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { ok: true };
+});
+
+const fitbitClientId = defineSecret("FITBIT_CLIENT_ID");
+const fitbitClientSecret = defineSecret("FITBIT_CLIENT_SECRET");
+const FITBIT_REDIRECT_URI = "https://southamerica-west1-borquia-v2.cloudfunctions.net/fitbitOAuthCallback";
+
+export const connectFitbit = onCall({ secrets: [fitbitClientId], region: "southamerica-west1" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  }
+  const clientId = fitbitClientId.value();
+  if (!clientId || clientId === "not-configured") {
+    throw new HttpsError("failed-precondition", "Fitbit todavía no está configurado (faltan credenciales de desarrollador).");
+  }
+  const scope = encodeURIComponent("activity heartrate sleep profile");
+  const url = `https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(FITBIT_REDIRECT_URI)}&scope=${scope}&state=${request.auth.uid}`;
+  return { url };
+});
+
+export const fitbitOAuthCallback = onRequest({ secrets: [fitbitClientId, fitbitClientSecret], region: "southamerica-west1" }, async (req, res) => {
+  const { code, state: uid, error } = req.query;
+  if (error) {
+    res.status(400).send("Conexión con Fitbit cancelada.");
+    return;
+  }
+  if (!code || !uid) {
+    res.status(400).send("Solicitud inválida.");
+    return;
+  }
+  try {
+    const basicAuth = Buffer.from(`${fitbitClientId.value()}:${fitbitClientSecret.value()}`).toString("base64");
+    const tokenRes = await fetch("https://api.fitbit.com/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Basic ${basicAuth}` },
+      body: new URLSearchParams({
+        client_id: fitbitClientId.value(),
+        grant_type: "authorization_code",
+        redirect_uri: FITBIT_REDIRECT_URI,
+        code: String(code),
+      }),
+    });
+    if (!tokenRes.ok) {
+      console.error("Fitbit token exchange failed", tokenRes.status, await tokenRes.text());
+      res.status(500).send("No se pudo completar la conexión con Fitbit.");
+      return;
+    }
+    const tokens = await tokenRes.json();
+    const db = getFirestore();
+    await db.collection("deviceTokens").doc(`${uid}_fitbit`).set({
+      provider: "fitbit",
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresAt: Date.now() + tokens.expires_in * 1000,
+      fitbitUserId: tokens.user_id,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    await db.collection("users").doc(String(uid)).collection("deviceConnections").doc("fitbit").set({
+      provider: "fitbit",
+      status: "connected",
+      connectedAt: FieldValue.serverTimestamp(),
+      lastSyncAt: null,
+    });
+    res.redirect("https://borquia-v2.web.app/?fitbit=connected");
+  } catch (e) {
+    console.error("fitbitOAuthCallback error", e);
+    res.status(500).send("Ocurrió un error al conectar con Fitbit.");
+  }
+});
+
+async function getFreshFitbitAccessToken(uid) {
+  const db = getFirestore();
+  const ref = db.collection("deviceTokens").doc(`${uid}_fitbit`);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const tokenDoc = snap.data();
+
+  if (Date.now() < tokenDoc.expiresAt - 60_000) return tokenDoc.accessToken;
+
+  const basicAuth = Buffer.from(`${fitbitClientId.value()}:${fitbitClientSecret.value()}`).toString("base64");
+  const res = await fetch("https://api.fitbit.com/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Basic ${basicAuth}` },
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: tokenDoc.refreshToken }),
+  });
+  if (!res.ok) throw new Error("No se pudo refrescar el token de Fitbit.");
+  const fresh = await res.json();
+  await ref.set({
+    accessToken: fresh.access_token,
+    refreshToken: fresh.refresh_token,
+    expiresAt: Date.now() + fresh.expires_in * 1000,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return fresh.access_token;
+}
+
+export const syncFitbitData = onCall({ secrets: [fitbitClientId, fitbitClientSecret], region: "southamerica-west1" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  }
+  const uid = request.auth.uid;
+  const accessToken = await getFreshFitbitAccessToken(uid);
+  if (!accessToken) {
+    throw new HttpsError("failed-precondition", "No tienes Fitbit conectado.");
+  }
+
+  const date = chileDateKey();
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  const [stepsRes, sleepRes, hrRes] = await Promise.all([
+    fetch(`https://api.fitbit.com/1/user/-/activities/date/${date}.json`, { headers }),
+    fetch(`https://api.fitbit.com/1.2/user/-/sleep/date/${date}.json`, { headers }),
+    fetch(`https://api.fitbit.com/1/user/-/activities/heart/date/${date}/1d.json`, { headers }),
+  ]);
+  if (!stepsRes.ok || !sleepRes.ok || !hrRes.ok) {
+    throw new HttpsError("internal", "No se pudo obtener datos de Fitbit.");
+  }
+  const [stepsData, sleepData, hrData] = await Promise.all([stepsRes.json(), sleepRes.json(), hrRes.json()]);
+
+  const metrics = {
+    steps: stepsData?.summary?.steps ?? 0,
+    caloriesBurned: stepsData?.summary?.caloriesOut ?? 0,
+    activeMinutes: (stepsData?.summary?.fairlyActiveMinutes ?? 0) + (stepsData?.summary?.veryActiveMinutes ?? 0),
+    sleepMinutes: sleepData?.summary?.totalMinutesAsleep ?? 0,
+    heartRateResting: hrData?.["activities-heart"]?.[0]?.value?.restingHeartRate ?? null,
+  };
+
+  const db = getFirestore();
+  await db.collection("users").doc(uid).collection("healthMetrics").doc(date).set({
+    ...metrics,
+    source: "fitbit",
+    syncedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  await db.collection("users").doc(uid).collection("deviceConnections").doc("fitbit").set({
+    lastSyncAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return { ok: true, metrics };
 });

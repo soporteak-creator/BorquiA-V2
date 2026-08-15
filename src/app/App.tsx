@@ -29,6 +29,7 @@ import {
   type AdminStats, type AdminUser, type AdminDoc, type AuditLogEntry, type AdminConfig,
 } from "../lib/admin";
 import { enablePushNotifications, sendTestNotification } from "../lib/notifications";
+import { fetchDeviceConnections, connectFitbit, syncFitbitData, disconnectDevice, type DeviceConnection, type DeviceProvider } from "../lib/devices";
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -1558,6 +1559,113 @@ function AIView({ profile }: { profile: UserProfile }) {
   );
 }
 
+const DEVICE_PROVIDERS: { key: DeviceProvider; label: string; note: string; available: boolean }[] = [
+  { key: "fitbit", label: "Fitbit", note: "Pasos, ritmo cardíaco, sueño y calorías", available: true },
+  { key: "apple_health", label: "Apple Health", note: "Requiere una app nativa de BorquIA (próximamente)", available: false },
+  { key: "google_health_connect", label: "Google Health Connect", note: "Requiere una app nativa de BorquIA (próximamente)", available: false },
+  { key: "garmin", label: "Garmin", note: "Pendiente de aprobación del fabricante", available: false },
+  { key: "samsung_health", label: "Samsung Health", note: "Pendiente de aprobación del fabricante", available: false },
+];
+
+function DevicesCard() {
+  const [connections, setConnections] = useState<Record<string, DeviceConnection>>({});
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  const load = () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) { setLoading(false); return; }
+    fetchDeviceConnections(uid).then(setConnections).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const handleConnectFitbit = async () => {
+    setBusy("fitbit");
+    setError("");
+    try {
+      const url = await connectFitbit();
+      window.location.href = url;
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo iniciar la conexión con Fitbit.");
+      setBusy(null);
+    }
+  };
+
+  const handleSyncFitbit = async () => {
+    setBusy("fitbit");
+    setError("");
+    try {
+      await syncFitbitData();
+      load();
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo sincronizar con Fitbit.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDisconnect = async (provider: DeviceProvider) => {
+    setBusy(provider);
+    setError("");
+    try {
+      await disconnectDevice(provider);
+      load();
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo desconectar.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="bg-card rounded-3xl border border-border p-6">
+      <h3 className="font-semibold text-foreground mb-1">Dispositivos y apps de salud</h3>
+      <p className="text-xs text-muted-foreground mb-4">Conecta un dispositivo para que tus datos de actividad, sueño y ritmo cardíaco se registren automáticamente.</p>
+      {loading ? (
+        <div className="flex items-center justify-center py-8"><Loader2 size={20} className="text-primary animate-spin" /></div>
+      ) : (
+        <div className="space-y-2">
+          {DEVICE_PROVIDERS.map(({ key, label, note, available }) => {
+            const conn = connections[key];
+            const isConnected = conn?.status === "connected";
+            return (
+              <div key={key} className="flex items-center justify-between p-3 rounded-2xl bg-muted gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">{label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isConnected ? `Conectado${conn?.lastSyncAt ? ` · última sincronización ${new Date(conn.lastSyncAt).toLocaleString("es-CL")}` : ""}` : note}
+                  </p>
+                </div>
+                {!available ? (
+                  <span className="text-xs text-muted-foreground shrink-0">No disponible</span>
+                ) : isConnected ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={handleSyncFitbit} disabled={busy === key} className="text-xs font-medium text-primary hover:underline disabled:opacity-60">
+                      {busy === key ? <Loader2 size={13} className="animate-spin" /> : "Sincronizar"}
+                    </button>
+                    <button onClick={() => handleDisconnect(key)} disabled={busy === key} className="text-xs font-medium text-muted-foreground hover:text-red-500 disabled:opacity-60">
+                      Desconectar
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={handleConnectFitbit} disabled={busy === key}
+                    className="shrink-0 text-xs font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center gap-1.5">
+                    {busy === key && <Loader2 size={12} className="animate-spin" />} Conectar
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {error && (
+        <div className="mt-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-xs leading-relaxed">{error}</div>
+      )}
+    </div>
+  );
+}
+
 function HealthView({ profile, onProfileChange }: { profile: UserProfile; onProfileChange: (p: UserProfile) => void }) {
   const [form, setForm] = useState({
     age: profile.age, height: profile.height, weight: profile.weight,
@@ -1597,6 +1705,8 @@ function HealthView({ profile, onProfileChange }: { profile: UserProfile; onProf
           Esta información se almacena de forma segura y solo tú puedes acceder a ella. No se usa sin tu consentimiento explícito.
         </p>
       </div>
+
+      <DevicesCard />
 
       <div className="bg-card rounded-3xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-4">Datos personales</h3>
